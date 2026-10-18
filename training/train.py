@@ -72,7 +72,8 @@ def build_model(cfg: dict):
 
 def count_params(model) -> tuple[int, int]:
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    total = sum(p.numel() for p in model.parameters())
+    # bitsandbytes packs several 4-bit weights per stored element; count the unpacked shape.
+    total = sum(p.quant_state.shape.numel() if hasattr(p, "quant_state") else p.numel() for p in model.parameters())
     return trainable, total
 
 
