@@ -55,3 +55,38 @@ The pipeline:
 On UVM: the raw corpus contains UVM testbench code in only 3 rows, and none of them survive
 dedup and the length cap. The training data is effectively plain Verilog (~93%) and
 SystemVerilog (~7%). Nothing in this project should be read as UVM capability.
+
+## Training
+
+Runs are defined in [configs/experiments.yaml](configs/experiments.yaml) and trained with
+HF Transformers + PEFT + DeepSpeed ZeRO-2 ([configs/deepspeed/](configs/deepspeed/)). The loss
+covers only the assistant (code) tokens. Metrics go to W&B.
+
+The ablation compares three fine-tuning methods on Qwen2.5-Coder-1.5B-Instruct, using 20k
+training examples (14.9M tokens) and 1 epoch:
+
+| Run | Method | Adapter | LR |
+|---|---|---|---|
+| L1 / Q1 | LoRA / QLoRA (NF4) | r=8, attention projections | 2e-4 |
+| L2 / Q2 | LoRA / QLoRA (NF4) | r=16, all linear layers | 2e-4 |
+| L3 / Q3 | LoRA / QLoRA (NF4) | r=64, all linear layers | 1e-4 |
+| F1 / F2 / F3 | Full fine-tune | — | 1e-5 / 2e-5 / 5e-5 |
+
+Shared settings: effective batch 64, max length 2048, cosine schedule, 3% warmup, bf16,
+gradient checkpointing, length-grouped batches. Each config was trained with a single seed.
+
+```bash
+# Local smoke test of the training loop (CPU/MPS, 0.5B model)
+uv sync --extra train
+uv run python -m training.train --experiment smoke --no-wandb --max-steps 4
+
+# On Modal (needs `modal token new` plus `wandb-secret` / `huggingface-secret` Modal secrets)
+uv run modal run training/modal_app.py --runs L2 --max-steps 20             # pilot
+uv run modal run training/modal_app.py --runs L1,L2,L3,Q1,Q2,Q3,F1,F2,F3    # full grid, in parallel
+
+# Anywhere with CUDA GPUs; the GPU count comes from torchrun
+torchrun --nproc_per_node 2 -m training.train --experiment F2
+```
+
+Each run writes `summary.json` with tokens/sec, peak GPU memory, trainable params,
+artifact size, losses, and estimated cost.
