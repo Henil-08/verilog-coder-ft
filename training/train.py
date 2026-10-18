@@ -107,11 +107,6 @@ def main() -> None:
     train_ds = load_sft_dataset(cfg["train_file"], tokenizer, cfg["max_seq_len"], prose, cfg["seed"])
     val_ds = load_sft_dataset(cfg["val_file"], tokenizer, cfg["max_seq_len"], prose, cfg["seed"])
 
-    model = build_model(cfg)
-    trainable, total = count_params(model)
-    if rank == 0:
-        print(f"[{cfg['run_name']}] {cfg['method']}: {trainable:,} / {total:,} params trainable")
-
     micro = cfg["micro_batch_size"]
     grad_accum = max(1, cfg["effective_batch_size"] // (micro * world_size))
 
@@ -143,6 +138,12 @@ def main() -> None:
         seed=cfg["seed"],
         dataloader_num_workers=2,
     )
+
+    # Built after TrainingArguments so a ZeRO-3 config can partition weights at load time.
+    model = build_model(cfg)
+    trainable, total = count_params(model)
+    if rank == 0:
+        print(f"[{cfg['run_name']}] {cfg['method']}: {trainable:,} / {total:,} params trainable")
 
     trainer = Trainer(
         model=model,
