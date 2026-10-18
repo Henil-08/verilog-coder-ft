@@ -1,0 +1,64 @@
+# Training runs. Each run inherits `defaults` and overrides what it lists.
+#
+# Ablation grid (1.5B, 20k examples): L* = LoRA, Q* = QLoRA (same adapter
+# settings as the matching L* run, NF4 base), F* = full fine-tune.
+# The 7B run is added once the ablation picks a method.
+
+defaults:
+  base_model: Qwen/Qwen2.5-Coder-1.5B-Instruct
+  train_file: data/processed/train_20k.jsonl
+  val_file: data/processed/val.jsonl
+  max_seq_len: 2048
+  epochs: 1
+  effective_batch_size: 64
+  micro_batch_size: 8
+  lr_scheduler: cosine
+  warmup: 0.03  # fraction of total steps
+  weight_decay: 0.0
+  max_grad_norm: 1.0
+  gradient_checkpointing: true
+  deepspeed: configs/deepspeed/zero2.json
+  logging_steps: 5
+  eval_steps: 50
+  seed: 42
+  gpu: H100
+  n_gpus: 1
+  wandb_project: verilog-coder-ft
+
+lora_attn: &lora_attn
+  method: lora
+  lora_dropout: 0.05
+  target_modules: [q_proj, k_proj, v_proj, o_proj]
+
+lora_all: &lora_all
+  method: lora
+  lora_dropout: 0.05
+  target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
+
+runs:
+  L1: {<<: *lora_attn, lora_r: 8, lora_alpha: 16, learning_rate: 2.0e-4}
+  L2: {<<: *lora_all, lora_r: 16, lora_alpha: 32, learning_rate: 2.0e-4}
+  L3: {<<: *lora_all, lora_r: 64, lora_alpha: 128, learning_rate: 1.0e-4}
+
+  Q1: {<<: *lora_attn, method: qlora, lora_r: 8, lora_alpha: 16, learning_rate: 2.0e-4}
+  Q2: {<<: *lora_all, method: qlora, lora_r: 16, lora_alpha: 32, learning_rate: 2.0e-4}
+  Q3: {<<: *lora_all, method: qlora, lora_r: 64, lora_alpha: 128, learning_rate: 1.0e-4}
+
+  F1: {method: full, learning_rate: 1.0e-5}
+  F2: {method: full, learning_rate: 2.0e-5}
+  F3: {method: full, learning_rate: 5.0e-5}
+
+  # Local CPU/MPS smoke test of the training loop; not part of the grid.
+  smoke:
+    <<: *lora_all
+    base_model: Qwen/Qwen2.5-Coder-0.5B-Instruct
+    lora_r: 8
+    lora_alpha: 16
+    learning_rate: 2.0e-4
+    max_seq_len: 512
+    effective_batch_size: 2
+    micro_batch_size: 1
+    deepspeed: null
+    gradient_checkpointing: false
+    logging_steps: 1
+    eval_steps: 2
