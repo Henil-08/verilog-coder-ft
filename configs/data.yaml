@@ -1,0 +1,29 @@
+dataset:
+  hf_id: ESCAD/OpenRTLSet
+  split: train
+
+# Qwen2.5-Coder 1.5B and 7B share a tokenizer, so token budgets hold for both.
+tokenizer: Qwen/Qwen2.5-Coder-1.5B-Instruct
+
+filters:
+  # Randomly generated fuzzer modules (~42% of the corpus) carry no design intent.
+  drop_repos:
+    - https://github.com/lac-dcc/chimera
+  min_code_chars: 50
+  max_tokens: 2048  # full chat-formatted example (prompt + completion)
+
+split:
+  seed: 42
+  test_size: 500
+  val_size: 500
+  # Each category gets at least this many test rows (or half its rows if smaller).
+  min_per_category: 50
+  # Test rows must be standalone modules that pass `verilator --lint-only`,
+  # so the eval harness can simulate them without missing dependencies.
+  test_require_lint: true
+  # Nested subsets: train_20k is a prefix of train_40k.
+  train_subsets:
+    train_20k: 20000
+    train_40k: 40000
+
+output_dir: data/processed
