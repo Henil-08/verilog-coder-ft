@@ -2,7 +2,7 @@ import shutil
 
 import pytest
 
-from eval.diffsim import diff_sim
+from eval.diffsim import diff_sim, rename_module
 
 pytestmark = pytest.mark.skipif(shutil.which("verilator") is None, reason="needs verilator")
 
@@ -60,6 +60,8 @@ def test_wrong_module_name():
         "compile_error", "port_mismatch")
 
 
-def test_port_named_like_module():
-    ref = "module q(input [3:0] a, output [3:0] q); assign q = ~a; endmodule"
-    assert diff_sim(ref, ref.replace("~a", "a ^ 4'hf"), "q").status == "pass"
+
+def test_rename_only_touches_declaration():
+    code = "module q(input a, output q_out); wire q; assign q = a; assign q_out = q; endmodule"
+    renamed = rename_module(code, "q", "ref_q")
+    assert renamed.startswith("module ref_q(") and "wire q;" in renamed
