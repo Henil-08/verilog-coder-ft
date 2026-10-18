@@ -49,7 +49,7 @@ def count_tokens(df: pd.DataFrame, tokenizer_name: str, batch_size: int = 1000) 
     return counts
 
 
-def test_quotas(counts: dict[str, int], test_size: int, min_per_category: int) -> dict[str, int]:
+def allocate_test_quotas(counts: dict[str, int], test_size: int, min_per_category: int) -> dict[str, int]:
     """Proportional allocation with a floor for small categories; the largest absorbs the rest."""
     total = sum(counts.values())
     largest = max(counts, key=counts.get)
@@ -117,7 +117,7 @@ def main() -> None:
     counts = {c: int((df["category"] == c).sum()) for c in CATEGORIES if (df["category"] == c).any()}
     stats["category_counts"] = counts
 
-    quotas = test_quotas(counts, split_cfg["test_size"], split_cfg["min_per_category"])
+    quotas = allocate_test_quotas(counts, split_cfg["test_size"], split_cfg["min_per_category"])
     test_parts = []
     for cat, quota in quotas.items():
         # UVM code depends on the UVM library, which a bare Verilator lint can't resolve.
