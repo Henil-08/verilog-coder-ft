@@ -38,3 +38,16 @@ def test_prompt_tokens_masked():
     text = tok.decode(supervised)
     assert "endmodule" in text and "Invert x." not in text
     assert text.rstrip().endswith("<|im_end|>")
+
+
+def test_prose_interface():
+    from training.dataset import prose_for, use_prose
+
+    row = {"id": "1", "module": "inv", "ioheader": "module inv(input [3:0] a, output [3:0] y);"}
+    assert prose_for(row) == "Module name: `inv`. Ports:\n- input `a` (4 bits)\n- output `y` (4 bits)"
+    assert prose_for(row | {"ioheader": "module inv #(parameter W=4)(input [W-1:0] a, output y);"}) is None
+    assert prose_for(row | {"ioheader": "module inv(input signed [3:0] a, output y);"}) is None
+    flips = [use_prose(str(i), 0.3, 42) for i in range(2000)]
+    assert flips == [use_prose(str(i), 0.3, 42) for i in range(2000)]  # deterministic
+    assert 0.25 < sum(flips) / len(flips) < 0.35
+    assert not any(use_prose(str(i), 0.0, 42) for i in range(100))
