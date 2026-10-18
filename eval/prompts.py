@@ -7,12 +7,12 @@ from data.prompts import build_messages
 from eval.verilog_eval import load_problems
 
 
-def openrtl_items(test_file: str = "data/processed/test.jsonl") -> list[dict]:
+def openrtl_items(split_file: str = "data/processed/test.jsonl", benchmark: str = "openrtl") -> list[dict]:
     items = []
-    for line in open(test_file):
+    for line in open(split_file):
         row = json.loads(line)
         items.append({
-            "benchmark": "openrtl",
+            "benchmark": benchmark,
             "id": row["id"],
             "messages": build_messages(row["description"], row["ioheader"]),
         })
@@ -47,13 +47,16 @@ def verilog_eval_items(root=None, with_interface: bool = False) -> list[dict]:
     ]
 
 
-BENCHMARKS = ("openrtl", "verilog_eval", "verilog_eval_iface")
+# openrtl_val (validation split) is used only to choose between fine-tuned runs.
+BENCHMARKS = ("openrtl", "openrtl_val", "verilog_eval", "verilog_eval_iface")
 
 
 def all_items(benchmarks=BENCHMARKS) -> list[dict]:
     items = []
     if "openrtl" in benchmarks:
         items += openrtl_items()
+    if "openrtl_val" in benchmarks:
+        items += openrtl_items("data/processed/val.jsonl", "openrtl_val")
     if "verilog_eval" in benchmarks:
         items += verilog_eval_items()
     if "verilog_eval_iface" in benchmarks:
