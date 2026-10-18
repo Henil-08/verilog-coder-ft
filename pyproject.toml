@@ -21,6 +21,9 @@ train = [
     "torch>=2.13",
     "wandb>=0.30",
 ]
+vllm = [
+    "vllm==0.31.0 ; sys_platform == 'linux'",
+]
 
 [dependency-groups]
 dev = [
@@ -30,6 +33,10 @@ dev = [
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+
+[tool.uv]
+# vLLM pins its own torch/transformers; keep it out of the training environment.
+conflicts = [[{ extra = "train" }, { extra = "vllm" }]]
 
 [tool.uv.extra-build-dependencies]
 # deepspeed only ships an sdist and imports torch in setup.py
