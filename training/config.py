@@ -20,17 +20,41 @@ GPU_HOURLY_USD = {
 }
 
 
-def list_runs(path: str | Path = EXPERIMENTS_PATH) -> list[str]:
+def _grid_names(cfg: dict) -> list[str]:
+    grid = cfg.get("grid", {})
+    return [f"{size}-{method}" for size in grid.get("sizes", {}) for method in grid.get("methods", [])]
+
+
+def list_runs(path: str | Path = EXPERIMENTS_PATH, grid_size: str | None = None) -> list[str]:
+    """All run names, or just one grid size's runs (e.g. grid_size="3B")."""
     with open(path) as f:
-        return list(yaml.safe_load(f)["runs"])
+        cfg = yaml.safe_load(f)
+    if grid_size:
+        return [n for n in _grid_names(cfg) if n.startswith(f"{grid_size}-")]
+    return list(cfg["runs"]) + _grid_names(cfg)
+
+
+def _resolve_grid(name: str, cfg: dict) -> dict:
+    size, method = name.rsplit("-", 1)
+    grid = cfg["grid"]
+    size_cfg = dict(grid["sizes"][size])
+    full_overrides = size_cfg.pop("full", {})
+    run = {**cfg["defaults"], **cfg["runs"][method], **grid["common"], **size_cfg}
+    if run["method"] == "full":
+        run.update(full_overrides)
+    return run
 
 
 def load_run(name: str, path: str | Path = EXPERIMENTS_PATH) -> dict:
     with open(path) as f:
         cfg = yaml.safe_load(f)
-    if name not in cfg["runs"]:
-        raise KeyError(f"unknown run '{name}'; choose from {list(cfg['runs'])}")
-    run = {**cfg["defaults"], **cfg["runs"][name], "run_name": name}
+    if name in cfg["runs"]:
+        run = {**cfg["defaults"], **cfg["runs"][name]}
+    elif name in _grid_names(cfg):
+        run = _resolve_grid(name, cfg)
+    else:
+        raise KeyError(f"unknown run '{name}'; choose from {list_runs(path)}")
+    run["run_name"] = name
     if run["method"] not in ("lora", "qlora", "full"):
         raise ValueError(f"run '{name}': unknown method '{run['method']}'")
     return run
