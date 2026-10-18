@@ -5,6 +5,7 @@ description = "LoRA fine-tune of a small open coder LLM for Verilog/SystemVerilo
 requires-python = ">=3.11"
 dependencies = [
     "datasets>=3.0",
+    "jinja2>=3.1.6",
     "pyyaml>=6.0.3",
     "transformers>=4.46",
 ]
