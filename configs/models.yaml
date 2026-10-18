@@ -1,0 +1,39 @@
+# Named models for the CLI and Streamlit app, with where each backend loads them from.
+#   hf:     Hub id or local dir (vLLM / Transformers); AWQ builds use hf_awq
+#   mlx:    MLX dir or Hub repo (Apple Silicon); 4-bit builds use mlx_4bit
+#   ollama: Ollama model tag (GGUF build)
+# ft-* entries point at the local build outputs of inference/convert.py until they are
+# pushed to the Hub.
+
+models:
+  base-1.5b:
+    hf: Qwen/Qwen2.5-Coder-1.5B-Instruct
+    mlx: Qwen/Qwen2.5-Coder-1.5B-Instruct
+    mlx_4bit: mlx-community/Qwen2.5-Coder-1.5B-Instruct-4bit
+    ollama: qwen2.5-coder:1.5b
+  base-3b:
+    hf: Qwen/Qwen2.5-Coder-3B-Instruct
+    mlx: Qwen/Qwen2.5-Coder-3B-Instruct
+    mlx_4bit: mlx-community/Qwen2.5-Coder-3B-Instruct-4bit
+    ollama: qwen2.5-coder:3b
+  base-7b:
+    hf: Qwen/Qwen2.5-Coder-7B-Instruct
+    mlx: Qwen/Qwen2.5-Coder-7B-Instruct
+    mlx_4bit: mlx-community/Qwen2.5-Coder-7B-Instruct-4bit
+    ollama: qwen2.5-coder:7b
+  ft-1.5b:
+    hf: models/merged/ft-1.5b
+    mlx: models/mlx/ft-1.5b
+    mlx_4bit: models/mlx/ft-1.5b-4bit
+    ollama: verilog-coder:1.5b
+  ft-3b:
+    hf: models/merged/ft-3b
+    mlx: models/mlx/ft-3b
+    mlx_4bit: models/mlx/ft-3b-4bit
+    ollama: verilog-coder:3b
+  ft-7b:
+    hf: models/merged/ft-7b
+    hf_awq: models/awq/ft-7b
+    mlx: models/mlx/ft-7b
+    mlx_4bit: models/mlx/ft-7b-4bit
+    ollama: verilog-coder:7b
