@@ -2,7 +2,9 @@
 
     uv run python -m eval.score outputs/generations/*.jsonl
 
-For each generation file this writes results/<model>.jsonl, one row per test item:
+Generation files for the same model (e.g. L1.jsonl and L1.iface.jsonl) are merged.
+Code is re-extracted from the raw response, so extraction fixes apply without
+regenerating. For each model this writes results/<model>.jsonl, one row per item:
   - compiles:  generated module passes `verilator --lint-only` (OpenRTLSet) or
                compiles under iverilog with the VerilogEval testbench
   - status:    diff-sim / testbench outcome (see eval.diffsim.STATUSES)
@@ -13,9 +15,11 @@ For each generation file this writes results/<model>.jsonl, one row per test ite
 import argparse
 import json
 import os
+from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
+from data.prompts import extract_code
 from eval.diffsim import diff_sim
 from eval.verilator import lint
 from eval.verilog_eval import load_problems
@@ -47,7 +51,7 @@ def score_openrtl(gen: dict, row: dict, eligible: bool) -> dict:
 def score_ve(gen: dict, problem: dict, valid: bool, clean: bool) -> dict:
     res = score_verilog_eval(problem, gen["code"])
     return {
-        "category": "verilog_eval",
+        "category": gen["benchmark"],
         "valid_problem": valid,
         "clean": clean,
         "compiles": res["status"] not in ("compile_error",),
@@ -80,9 +84,12 @@ def main() -> None:
 
     out_dir = Path(args.out_dir)
     out_dir.mkdir(exist_ok=True)
+    by_model: dict[str, list[dict]] = defaultdict(list)
     for path in args.generations:
-        gens = load_jsonl(path)
-        model = gens[0]["model"]
+        for gen in load_jsonl(path):
+            by_model[gen["model"]].append(gen | {"code": extract_code(gen["response"])})
+
+    for model, gens in by_model.items():
         out_path = out_dir / f"{model}.jsonl"
         if out_path.exists() and not args.force:
             print(f"skip {model} (exists)")
@@ -101,9 +108,12 @@ def main() -> None:
             results = list(ex.map(work, gens))
         out_path.write_text("".join(json.dumps(r) + "\n" for r in results))
         ort = [r for r in results if r["benchmark"] == "openrtl" and r["eligible"]]
-        ve = [r for r in results if r["benchmark"] == "verilog_eval"]
-        print(f"{model:<32} openrtl pass@1 {sum(r['passed'] for r in ort)}/{len(ort)}   "
-              f"verilog_eval pass@1 {sum(r['passed'] for r in ve)}/{len(ve)}")
+        line = f"{model:<32} openrtl {sum(r['passed'] for r in ort)}/{len(ort)}"
+        for bench in ("verilog_eval", "verilog_eval_iface"):
+            ve = [r for r in results if r["benchmark"] == bench]
+            if ve:
+                line += f"   {bench} {sum(r['passed'] for r in ve)}/{len(ve)}"
+        print(line)
 
 
 if __name__ == "__main__":
