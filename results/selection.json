@@ -1,11 +1,18 @@
 {
   "3B": {
-    "best": "3B-L3",
+    "best": "3B-F2",
     "best_by_family": {
+      "F": "3B-F2",
       "L": "3B-L3",
       "Q": "3B-Q2"
     },
     "candidates": [
+      {
+        "run": "3B-F2",
+        "val_passed": 107,
+        "val_n": 248,
+        "cost_usd": 3.633
+      },
       {
         "run": "3B-L3",
         "val_passed": 103,
@@ -41,6 +48,98 @@
         "val_passed": 91,
         "val_n": 248,
         "cost_usd": 2.638
+      }
+    ]
+  },
+  "1.5B": {
+    "best": "1.5B-F2",
+    "best_by_family": {
+      "F": "1.5B-F2",
+      "Q": "1.5B-Q3",
+      "L": "1.5B-L3"
+    },
+    "candidates": [
+      {
+        "run": "1.5B-F2",
+        "val_passed": 109,
+        "val_n": 248,
+        "cost_usd": 1.846
+      },
+      {
+        "run": "1.5B-F3",
+        "val_passed": 108,
+        "val_n": 248,
+        "cost_usd": 1.611
+      },
+      {
+        "run": "1.5B-F1",
+        "val_passed": 108,
+        "val_n": 248,
+        "cost_usd": 1.723
+      },
+      {
+        "run": "1.5B-Q3",
+        "val_passed": 103,
+        "val_n": 248,
+        "cost_usd": 2.586
+      },
+      {
+        "run": "1.5B-L3",
+        "val_passed": 99,
+        "val_n": 248,
+        "cost_usd": 2.164
+      },
+      {
+        "run": "1.5B-L2",
+        "val_passed": 98,
+        "val_n": 248,
+        "cost_usd": 2.047
+      },
+      {
+        "run": "1.5B-Q2",
+        "val_passed": 97,
+        "val_n": 248,
+        "cost_usd": 2.59
+      },
+      {
+        "run": "1.5B-L1",
+        "val_passed": 84,
+        "val_n": 248,
+        "cost_usd": 1.535
+      },
+      {
+        "run": "1.5B-Q1",
+        "val_passed": 83,
+        "val_n": 248,
+        "cost_usd": 1.698
+      }
+    ]
+  },
+  "7B": {
+    "best": "7B-L3",
+    "best_by_family": {
+      "L": "7B-L3",
+      "F": "7B-F2",
+      "Q": "7B-Q2"
+    },
+    "candidates": [
+      {
+        "run": "7B-L3",
+        "val_passed": 113,
+        "val_n": 248,
+        "cost_usd": 5.37
+      },
+      {
+        "run": "7B-F2",
+        "val_passed": 110,
+        "val_n": 248,
+        "cost_usd": 7.396
+      },
+      {
+        "run": "7B-Q2",
+        "val_passed": 104,
+        "val_n": 248,
+        "cost_usd": 5.668
       }
     ]
   }
