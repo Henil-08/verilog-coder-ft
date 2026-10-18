@@ -1,0 +1,479 @@
+{
+  "base-Qwen2.5-Coder-1.5B-Instruct": {
+    "openrtl": {
+      "passed": 68,
+      "n": 394,
+      "pass@1": 0.1726,
+      "ci95": [
+        0.1385,
+        0.213
+      ],
+      "gained_vs_baseline": 3,
+      "lost_vs_baseline": 66,
+      "mcnemar_p": 0.0
+    },
+    "openrtl_val": {
+      "passed": 43,
+      "n": 248,
+      "pass@1": 0.1734,
+      "ci95": [
+        0.1313,
+        0.2254
+      ],
+      "gained_vs_baseline": 4,
+      "lost_vs_baseline": 37,
+      "mcnemar_p": 0.0
+    },
+    "openrtl_verilog": {
+      "passed": 65,
+      "n": 347,
+      "pass@1": 0.1873,
+      "ci95": [
+        0.1498,
+        0.2317
+      ],
+      "gained_vs_baseline": 3,
+      "lost_vs_baseline": 53,
+      "mcnemar_p": 0.0
+    },
+    "openrtl_systemverilog": {
+      "passed": 3,
+      "n": 47,
+      "pass@1": 0.0638,
+      "ci95": [
+        0.0219,
+        0.1716
+      ],
+      "gained_vs_baseline": 0,
+      "lost_vs_baseline": 13,
+      "mcnemar_p": 0.0002
+    },
+    "verilog_eval": {
+      "passed": 16,
+      "n": 156,
+      "pass@1": 0.1026,
+      "ci95": [
+        0.0641,
+        0.1601
+      ],
+      "gained_vs_baseline": 1,
+      "lost_vs_baseline": 34,
+      "mcnemar_p": 0.0
+    },
+    "verilog_eval_valid": {
+      "passed": 16,
+      "n": 152,
+      "pass@1": 0.1053,
+      "ci95": [
+        0.0658,
+        0.1642
+      ],
+      "gained_vs_baseline": 1,
+      "lost_vs_baseline": 34,
+      "mcnemar_p": 0.0
+    },
+    "verilog_eval_clean": {
+      "passed": 7,
+      "n": 130,
+      "pass@1": 0.0538,
+      "ci95": [
+        0.0263,
+        0.107
+      ],
+      "gained_vs_baseline": 1,
+      "lost_vs_baseline": 28,
+      "mcnemar_p": 0.0
+    },
+    "verilog_eval_iface": {
+      "passed": 30,
+      "n": 156,
+      "pass@1": 0.1923,
+      "ci95": [
+        0.1382,
+        0.2612
+      ],
+      "gained_vs_baseline": 1,
+      "lost_vs_baseline": 31,
+      "mcnemar_p": 0.0
+    },
+    "verilog_eval_iface_clean": {
+      "passed": 14,
+      "n": 130,
+      "pass@1": 0.1077,
+      "ci95": [
+        0.0652,
+        0.1727
+      ],
+      "gained_vs_baseline": 0,
+      "lost_vs_baseline": 29,
+      "mcnemar_p": 0.0
+    },
+    "openrtl_compile": {
+      "compiles": 239,
+      "n": 500,
+      "rate": 0.478
+    },
+    "verilog_eval_compile": {
+      "compiles": 79,
+      "n": 156,
+      "rate": 0.5064
+    },
+    "verilog_eval_iface_compile": {
+      "compiles": 94,
+      "n": 156,
+      "rate": 0.6026
+    },
+    "truncated_outputs": 137
+  },
+  "base-Qwen2.5-Coder-3B-Instruct": {
+    "openrtl": {
+      "passed": 101,
+      "n": 394,
+      "pass@1": 0.2563,
+      "ci95": [
+        0.2157,
+        0.3017
+      ],
+      "gained_vs_baseline": 11,
+      "lost_vs_baseline": 41,
+      "mcnemar_p": 0.0
+    },
+    "openrtl_val": {
+      "passed": 54,
+      "n": 248,
+      "pass@1": 0.2177,
+      "ci95": [
+        0.1709,
+        0.2732
+      ],
+      "gained_vs_baseline": 8,
+      "lost_vs_baseline": 30,
+      "mcnemar_p": 0.0005
+    },
+    "openrtl_verilog": {
+      "passed": 90,
+      "n": 347,
+      "pass@1": 0.2594,
+      "ci95": [
+        0.2161,
+        0.3079
+      ],
+      "gained_vs_baseline": 9,
+      "lost_vs_baseline": 34,
+      "mcnemar_p": 0.0002
+    },
+    "openrtl_systemverilog": {
+      "passed": 11,
+      "n": 47,
+      "pass@1": 0.234,
+      "ci95": [
+        0.136,
+        0.3722
+      ],
+      "gained_vs_baseline": 2,
+      "lost_vs_baseline": 7,
+      "mcnemar_p": 0.1797
+    },
+    "verilog_eval": {
+      "passed": 29,
+      "n": 156,
+      "pass@1": 0.1859,
+      "ci95": [
+        0.1327,
+        0.2542
+      ],
+      "gained_vs_baseline": 6,
+      "lost_vs_baseline": 26,
+      "mcnemar_p": 0.0005
+    },
+    "verilog_eval_valid": {
+      "passed": 29,
+      "n": 152,
+      "pass@1": 0.1908,
+      "ci95": [
+        0.1363,
+        0.2606
+      ],
+      "gained_vs_baseline": 6,
+      "lost_vs_baseline": 26,
+      "mcnemar_p": 0.0005
+    },
+    "verilog_eval_clean": {
+      "passed": 18,
+      "n": 130,
+      "pass@1": 0.1385,
+      "ci95": [
+        0.0894,
+        0.2083
+      ],
+      "gained_vs_baseline": 5,
+      "lost_vs_baseline": 21,
+      "mcnemar_p": 0.0025
+    },
+    "verilog_eval_iface": {
+      "passed": 36,
+      "n": 156,
+      "pass@1": 0.2308,
+      "ci95": [
+        0.1716,
+        0.3029
+      ],
+      "gained_vs_baseline": 3,
+      "lost_vs_baseline": 27,
+      "mcnemar_p": 0.0
+    },
+    "verilog_eval_iface_clean": {
+      "passed": 23,
+      "n": 130,
+      "pass@1": 0.1769,
+      "ci95": [
+        0.1209,
+        0.2515
+      ],
+      "gained_vs_baseline": 2,
+      "lost_vs_baseline": 22,
+      "mcnemar_p": 0.0
+    },
+    "openrtl_compile": {
+      "compiles": 314,
+      "n": 500,
+      "rate": 0.628
+    },
+    "verilog_eval_compile": {
+      "compiles": 92,
+      "n": 156,
+      "rate": 0.5897
+    },
+    "verilog_eval_iface_compile": {
+      "compiles": 107,
+      "n": 156,
+      "rate": 0.6859
+    },
+    "truncated_outputs": 84
+  },
+  "base-Qwen2.5-Coder-7B-Instruct": {
+    "openrtl": {
+      "passed": 131,
+      "n": 394,
+      "pass@1": 0.3325,
+      "ci95": [
+        0.2878,
+        0.3804
+      ]
+    },
+    "openrtl_val": {
+      "passed": 76,
+      "n": 248,
+      "pass@1": 0.3065,
+      "ci95": [
+        0.2524,
+        0.3664
+      ]
+    },
+    "openrtl_verilog": {
+      "passed": 115,
+      "n": 347,
+      "pass@1": 0.3314,
+      "ci95": [
+        0.284,
+        0.3825
+      ]
+    },
+    "openrtl_systemverilog": {
+      "passed": 16,
+      "n": 47,
+      "pass@1": 0.3404,
+      "ci95": [
+        0.2217,
+        0.4833
+      ]
+    },
+    "verilog_eval": {
+      "passed": 49,
+      "n": 156,
+      "pass@1": 0.3141,
+      "ci95": [
+        0.2465,
+        0.3907
+      ]
+    },
+    "verilog_eval_valid": {
+      "passed": 49,
+      "n": 152,
+      "pass@1": 0.3224,
+      "ci95": [
+        0.2532,
+        0.4003
+      ]
+    },
+    "verilog_eval_clean": {
+      "passed": 34,
+      "n": 130,
+      "pass@1": 0.2615,
+      "ci95": [
+        0.1936,
+        0.3432
+      ]
+    },
+    "verilog_eval_iface": {
+      "passed": 60,
+      "n": 156,
+      "pass@1": 0.3846,
+      "ci95": [
+        0.3119,
+        0.4629
+      ]
+    },
+    "verilog_eval_iface_clean": {
+      "passed": 43,
+      "n": 130,
+      "pass@1": 0.3308,
+      "ci95": [
+        0.2558,
+        0.4155
+      ]
+    },
+    "openrtl_compile": {
+      "compiles": 408,
+      "n": 500,
+      "rate": 0.816
+    },
+    "verilog_eval_compile": {
+      "compiles": 116,
+      "n": 156,
+      "rate": 0.7436
+    },
+    "verilog_eval_iface_compile": {
+      "compiles": 132,
+      "n": 156,
+      "rate": 0.8462
+    },
+    "truncated_outputs": 16
+  },
+  "base-Qwen2.5-Coder-14B-Instruct": {
+    "openrtl": {
+      "passed": 148,
+      "n": 394,
+      "pass@1": 0.3756,
+      "ci95": [
+        0.3292,
+        0.4244
+      ],
+      "gained_vs_baseline": 33,
+      "lost_vs_baseline": 16,
+      "mcnemar_p": 0.0213
+    },
+    "openrtl_val": {
+      "passed": 83,
+      "n": 248,
+      "pass@1": 0.3347,
+      "ci95": [
+        0.2789,
+        0.3955
+      ],
+      "gained_vs_baseline": 20,
+      "lost_vs_baseline": 13,
+      "mcnemar_p": 0.2962
+    },
+    "openrtl_verilog": {
+      "passed": 137,
+      "n": 347,
+      "pass@1": 0.3948,
+      "ci95": [
+        0.3448,
+        0.4471
+      ],
+      "gained_vs_baseline": 30,
+      "lost_vs_baseline": 8,
+      "mcnemar_p": 0.0005
+    },
+    "openrtl_systemverilog": {
+      "passed": 11,
+      "n": 47,
+      "pass@1": 0.234,
+      "ci95": [
+        0.136,
+        0.3722
+      ],
+      "gained_vs_baseline": 3,
+      "lost_vs_baseline": 8,
+      "mcnemar_p": 0.2266
+    },
+    "verilog_eval": {
+      "passed": 59,
+      "n": 156,
+      "pass@1": 0.3782,
+      "ci95": [
+        0.3059,
+        0.4564
+      ],
+      "gained_vs_baseline": 17,
+      "lost_vs_baseline": 7,
+      "mcnemar_p": 0.0639
+    },
+    "verilog_eval_valid": {
+      "passed": 59,
+      "n": 152,
+      "pass@1": 0.3882,
+      "ci95": [
+        0.3144,
+        0.4675
+      ],
+      "gained_vs_baseline": 17,
+      "lost_vs_baseline": 7,
+      "mcnemar_p": 0.0639
+    },
+    "verilog_eval_clean": {
+      "passed": 44,
+      "n": 130,
+      "pass@1": 0.3385,
+      "ci95": [
+        0.2628,
+        0.4234
+      ],
+      "gained_vs_baseline": 16,
+      "lost_vs_baseline": 6,
+      "mcnemar_p": 0.0525
+    },
+    "verilog_eval_iface": {
+      "passed": 69,
+      "n": 156,
+      "pass@1": 0.4423,
+      "ci95": [
+        0.3667,
+        0.5207
+      ],
+      "gained_vs_baseline": 14,
+      "lost_vs_baseline": 5,
+      "mcnemar_p": 0.0636
+    },
+    "verilog_eval_iface_clean": {
+      "passed": 52,
+      "n": 130,
+      "pass@1": 0.4,
+      "ci95": [
+        0.3198,
+        0.4859
+      ],
+      "gained_vs_baseline": 13,
+      "lost_vs_baseline": 4,
+      "mcnemar_p": 0.049
+    },
+    "openrtl_compile": {
+      "compiles": 419,
+      "n": 500,
+      "rate": 0.838
+    },
+    "verilog_eval_compile": {
+      "compiles": 113,
+      "n": 156,
+      "rate": 0.7244
+    },
+    "verilog_eval_iface_compile": {
+      "compiles": 132,
+      "n": 156,
+      "rate": 0.8462
+    },
+    "truncated_outputs": 12
+  }
+}
