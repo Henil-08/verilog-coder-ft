@@ -1,6 +1,6 @@
 """Generate completions for both benchmarks with vLLM on Modal.
 
-Models are named by run (from configs/experiments.yaml), `base`, or a Hub id:
+Models are named by run (from configs/experiments.yaml), `base` / `base:<size>`, or a Hub id:
 
     uv run modal run eval/modal_generate.py --models base,L1,L2,L3,Q1,Q2,Q3
     uv run modal run eval/modal_generate.py --models F1,F2,F3
@@ -107,8 +107,10 @@ def resolve(name: str) -> tuple[str, dict]:
     """Map a model name to (vLLM model path, variant)."""
     from training.config import load_run
 
-    if name == "base":
-        base = load_run("L1")["base_model"]
+    if name == "base" or name.startswith("base:"):
+        # "base" is the ablation's base model; "base:7B" is Qwen2.5-Coder-7B-Instruct.
+        size = name.partition(":")[2]
+        base = f"Qwen/Qwen2.5-Coder-{size}-Instruct" if size else load_run("L1")["base_model"]
         return base, {"tag": "base-" + base.split("/")[-1], "adapter": None}
     if "/" in name:
         return name, {"tag": name.split("/")[-1], "adapter": None}
