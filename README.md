@@ -315,3 +315,9 @@ ui/          CLI and Streamlit app
 docs/        VS Code / Continue setup
 results/     per-example results, summaries, figures
 ```
+
+## License
+
+Code: [MIT](LICENSE). Model weights follow their base models: Apache-2.0 for the 1.5B and
+7B builds, the Qwen Research License for the 3B build. Training data: OpenRTLSet, whose
+rows carry their source repositories' licenses.
