@@ -76,8 +76,11 @@ def quantize_model(model: str, out_name: str, push_to: str = "") -> str:
     tokenizer.save_pretrained(out)
     runs_volume.commit()
     if push_to:
-        net.push_to_hub(push_to, save_compressed=True, private=False)
-        tokenizer.push_to_hub(push_to)
+        from huggingface_hub import HfApi
+
+        api = HfApi()
+        api.create_repo(push_to, exist_ok=True)
+        api.upload_folder(repo_id=push_to, folder_path=str(out), commit_message="Upload AWQ W4A16 build")
     return str(out)
 
 
