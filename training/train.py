@@ -103,8 +103,9 @@ def main() -> None:
     tokenizer = AutoTokenizer.from_pretrained(cfg["base_model"])
     tokenizer.padding_side = "right"
 
-    train_ds = load_sft_dataset(cfg["train_file"], tokenizer, cfg["max_seq_len"])
-    val_ds = load_sft_dataset(cfg["val_file"], tokenizer, cfg["max_seq_len"])
+    prose = cfg.get("interface_prose_fraction", 0.0)
+    train_ds = load_sft_dataset(cfg["train_file"], tokenizer, cfg["max_seq_len"], prose, cfg["seed"])
+    val_ds = load_sft_dataset(cfg["val_file"], tokenizer, cfg["max_seq_len"], prose, cfg["seed"])
 
     model = build_model(cfg)
     trainable, total = count_params(model)
