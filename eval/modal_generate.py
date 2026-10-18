@@ -45,6 +45,30 @@ image = (
 )
 
 
+# Older Hub checkpoints whose tokenizer class transformers 5 resolves incorrectly
+# (spaces dropped or inserted on encode and decode). They are served with a generic
+# fast tokenizer built from their own tokenizer.json, which round-trips exactly.
+GENERIC_TOKENIZER_MODELS = {"ishorn5/RTLCoder-Deepseek-v1.1", "yang-z/CodeV-QW-7B"}
+
+
+def generic_tokenizer_dir(model: str) -> str:
+    """Copy `model`'s tokenizer files, forcing the generic PreTrainedTokenizerFast class."""
+    from huggingface_hub import hf_hub_download
+
+    out = Path("/tmp/tokenizers") / model.replace("/", "--")
+    out.mkdir(parents=True, exist_ok=True)
+    for name in ("tokenizer.json", "special_tokens_map.json"):
+        try:
+            Path(out, name).write_bytes(Path(hf_hub_download(model, name)).read_bytes())
+        except Exception:  # special_tokens_map.json is optional
+            pass
+    cfg = json.loads(Path(hf_hub_download(model, "tokenizer_config.json")).read_text())
+    cfg["tokenizer_class"] = "PreTrainedTokenizerFast"
+    cfg.pop("auto_map", None)
+    Path(out, "tokenizer_config.json").write_text(json.dumps(cfg))
+    return str(out)
+
+
 @app.function(
     image=image,
     gpu="L40S",
@@ -61,8 +85,10 @@ def generate(model: str, variants: list[dict], items: list[dict], suffix: str = 
 
     runs_volume.reload()
     use_lora = any(v["adapter"] for v in variants)
+    tokenizer = generic_tokenizer_dir(model) if model in GENERIC_TOKENIZER_MODELS else None
     llm = LLM(
         model=model,
+        tokenizer=tokenizer,
         dtype="bfloat16",
         max_model_len=MAX_MODEL_LEN,
         enable_lora=use_lora,
