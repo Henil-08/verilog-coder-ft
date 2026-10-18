@@ -55,10 +55,19 @@ def list_models() -> dict[str, dict]:
 
 
 def _source(entry: dict, key: str) -> str:
-    """Resolve a registry path relative to the repo root when it exists locally."""
-    value = entry[key]
-    local = MODELS_PATH.parents[1] / value
-    return str(local) if local.exists() else value
+    """First usable source for `key`: a local build (relative to the repo root) or a Hub id.
+
+    Registry values are a single source or a list tried in order, e.g. a local build
+    followed by its published copy on the Hub.
+    """
+    values = entry[key] if isinstance(entry[key], list) else [entry[key]]
+    for value in values:
+        local = MODELS_PATH.parents[1] / value
+        if local.exists():
+            return str(local)
+        if not value.startswith(("models/", "./", "/")):
+            return value  # Hub id
+    raise FileNotFoundError(f"no local build for {values}; run inference.convert or use a Hub id")
 
 
 def load_backend(model: str, backend: str = "auto", quantized: bool = False) -> Backend:
