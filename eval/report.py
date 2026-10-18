@@ -38,10 +38,13 @@ SUBSETS = {
     "verilog_eval": lambda r: r["benchmark"] == "verilog_eval",
     "verilog_eval_valid": lambda r: r["benchmark"] == "verilog_eval" and r["valid_problem"],
     "verilog_eval_clean": lambda r: r["benchmark"] == "verilog_eval" and r["valid_problem"] and r["clean"],
+    "verilog_eval_iface": lambda r: r["benchmark"] == "verilog_eval_iface",
+    "verilog_eval_iface_clean": lambda r: r["benchmark"] == "verilog_eval_iface" and r["valid_problem"] and r["clean"],
 }
 COMPILE_SUBSETS = {
     "openrtl_compile": lambda r: r["benchmark"] == "openrtl",
     "verilog_eval_compile": lambda r: r["benchmark"] == "verilog_eval",
+    "verilog_eval_iface_compile": lambda r: r["benchmark"] == "verilog_eval_iface",
 }
 
 
@@ -76,21 +79,28 @@ def pct(entry: dict) -> str:
 
 def to_markdown(summary: dict, baseline: str, training: dict) -> str:
     lines = [
-        "| Model | OpenRTLSet pass@1 | VerilogEval pass@1 | VE (clean) | Compile (ORT / VE) | vs base: +/- (p) | Train cost |",
-        "|---|---|---|---|---|---|---|",
+        "| Model | OpenRTLSet pass@1 | VerilogEval pass@1 | VerilogEval + interface | Compile (ORT / VE / VE+if) "
+        "| vs base, ORT: +/- (p) | vs base, VE+if: +/- (p) | Train cost |",
+        "|---|---|---|---|---|---|---|---|",
     ]
     for model, s in summary.items():
-        o, v, vc = s["openrtl"], s["verilog_eval"], s["verilog_eval_clean"]
-        if model == baseline or "gained_vs_baseline" not in o:
-            delta = "baseline"
-        else:
-            delta = f"ORT +{o['gained_vs_baseline']}/-{o['lost_vs_baseline']} (p={o['mcnemar_p']}); " \
-                    f"VE +{v['gained_vs_baseline']}/-{v['lost_vs_baseline']} (p={v['mcnemar_p']})"
+        o, v, vi = s["openrtl"], s["verilog_eval"], s["verilog_eval_iface"]
+
+        def delta(e: dict) -> str:
+            if model == baseline or "gained_vs_baseline" not in e:
+                return "baseline"
+            return f"+{e['gained_vs_baseline']}/-{e['lost_vs_baseline']} (p={e['mcnemar_p']})"
+
+        def rate(name: str) -> str:
+            r = s[name]["rate"]
+            return f"{100 * r:.0f}%" if r is not None else "-"
+
         cost = training.get(model, {}).get("container_cost_usd")
         lines.append(
             f"| {model} | {pct(o)} ({o['passed']}/{o['n']}) | {pct(v)} ({v['passed']}/{v['n']}) | "
-            f"{pct(vc)} | {100 * s['openrtl_compile']['rate']:.0f}% / {100 * s['verilog_eval_compile']['rate']:.0f}% | "
-            f"{delta} | {f'${cost:.2f}' if cost else '-'} |"
+            f"{pct(vi)} ({vi['passed']}/{vi['n']}) | "
+            f"{rate('openrtl_compile')} / {rate('verilog_eval_compile')} / {rate('verilog_eval_iface_compile')} | "
+            f"{delta(o)} | {delta(vi)} | {f'${cost:.2f}' if cost else '-'} |"
         )
     return "\n".join(lines) + "\n"
 
