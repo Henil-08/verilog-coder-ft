@@ -7,7 +7,7 @@ models:
   # macOS / Apple Silicon: mlx_lm.server on port 8080 (OpenAI-compatible)
   - name: verilog-coder 7B (MLX 4-bit)
     provider: openai
-    model: verilog-coder
+    model: default_model  # mlx_lm.server: use the model passed to --model
     apiBase: http://localhost:8080/v1
     apiKey: none
     roles: [chat, edit, apply]
