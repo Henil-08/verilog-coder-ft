@@ -1,0 +1,27 @@
+# Continue (VS Code) config: copy into ~/.continue/config.yaml, keep the entries you use.
+# Start the matching server first (see docs/vscode.md).
+name: verilog-coder
+version: 0.0.1
+schema: v1
+models:
+  # macOS / Apple Silicon: mlx_lm.server on port 8080 (OpenAI-compatible)
+  - name: verilog-coder 7B (MLX 4-bit)
+    provider: openai
+    model: verilog-coder
+    apiBase: http://localhost:8080/v1
+    apiKey: none
+    roles: [chat, edit, apply]
+
+  # Windows (native) / any OS: Ollama with the GGUF build
+  - name: verilog-coder 7B (Ollama)
+    provider: ollama
+    model: verilog-coder:7b
+    roles: [chat, edit, apply]
+
+  # Linux or Windows WSL2 with an NVIDIA GPU: vLLM's OpenAI server on port 8000
+  - name: verilog-coder 7B (vLLM)
+    provider: openai
+    model: henil08/verilog-coder-7b
+    apiBase: http://localhost:8000/v1
+    apiKey: none
+    roles: [chat, edit, apply]
