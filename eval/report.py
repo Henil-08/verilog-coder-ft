@@ -74,6 +74,10 @@ def summarize(results: list[dict], baseline: list[dict] | None) -> dict:
     return out
 
 
+def fmt_p(p: float) -> str:
+    return "p<0.001" if p < 0.001 else f"p={p:.3f}"
+
+
 def pct(entry: dict) -> str:
     return f"{100 * entry['pass@1']:.1f}" if entry["pass@1"] is not None else "-"
 
@@ -90,7 +94,7 @@ def to_markdown(summary: dict, baseline: str, training: dict) -> str:
         def delta(e: dict) -> str:
             if model == baseline or "gained_vs_baseline" not in e:
                 return "baseline"
-            return f"+{e['gained_vs_baseline']}/-{e['lost_vs_baseline']} (p={e['mcnemar_p']})"
+            return f"+{e['gained_vs_baseline']}/-{e['lost_vs_baseline']} ({fmt_p(e['mcnemar_p'])})"
 
         def rate(name: str) -> str:
             r = s[name]["rate"]
