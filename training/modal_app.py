@@ -41,7 +41,8 @@ image = (
     .add_local_dir(
         PROJECT_DIR,
         REMOTE_DIR,
-        ignore=[".venv", ".git", "outputs", "data/raw", "**/__pycache__", "data/processed/train_full.jsonl"],
+        ignore=[".venv", ".git", "outputs", "models", "results", "data/raw", "**/__pycache__",
+                "data/processed/train_full.jsonl"],
     )
 )
 
