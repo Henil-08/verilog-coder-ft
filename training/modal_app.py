@@ -2,10 +2,16 @@
 
     uv run modal run training/modal_app.py --runs L2 --max-steps 20          # pilot
     uv run modal run training/modal_app.py --runs L1,L2,L3,Q1,Q2,Q3,F1,F2,F3  # ablation grid, in parallel
+    uv run modal run training/modal_app.py --runs grid:3B --evaluate --budget 27  # one grid size, then evaluate
     uv run modal run training/modal_app.py --runs F2 --n-gpus 2               # override GPU count
 
-Outputs land on the `verilog-ft-runs` volume:
-    uv run modal volume get verilog-ft-runs runs/L2/summary.json .
+--budget refuses to launch if this month's metered spend plus the estimated cost of
+the queued runs would exceed it. --evaluate generates completions for every successful
+run afterwards (eval/modal_generate.py) so they can be scored locally.
+
+Run summaries are copied to outputs/runs/<run>/summary.json; adapters and weights
+stay on the `verilog-ft-runs` volume:
+    uv run modal volume get verilog-ft-runs runs/L2/model ./L2-adapter
 """
 
 import json
@@ -72,29 +78,68 @@ def train(run: str, gpu: str, n_gpus: int, max_steps: int = -1) -> dict:
     return summary
 
 
+def expand_runs(runs: str) -> list[str]:
+    from training.config import list_runs
+
+    names = []
+    for item in runs.split(","):
+        names += list_runs(grid_size=item.removeprefix("grid:")) if item.startswith("grid:") else [item]
+    return names
+
+
 @app.local_entrypoint()
-def main(runs: str, max_steps: int = -1, gpu: str = "", n_gpus: int = 0):
+def main(runs: str, max_steps: int = -1, gpu: str = "", n_gpus: int = 0, evaluate: bool = False,
+         budget: float = 0.0):
+    from training.budget import estimate_eval_cost, estimate_run_cost, metered_cost
     from training.config import load_run
 
-    calls = []
-    for name in runs.split(","):
-        cfg = load_run(name)
-        run_gpu, run_n = gpu or cfg["gpu"], n_gpus or cfg["n_gpus"]
-        spec = run_gpu if run_n == 1 else f"{run_gpu}:{run_n}"
-        print(f"launching {name} on {spec}" + (f" (max_steps={max_steps})" if max_steps > 0 else ""))
-        calls.append((name, train.with_options(gpu=spec).spawn(name, run_gpu, run_n, max_steps)))
+    names = expand_runs(runs)
+    configs = {name: load_run(name) for name in names}
+    for cfg in configs.values():
+        cfg["gpu"], cfg["n_gpus"] = gpu or cfg["gpu"], n_gpus or cfg["n_gpus"]
 
-    total = 0.0
-    print(f"\n{'run':<6} {'method':<6} {'steps':>5} {'tok/s':>9} {'mem GB':>7} {'eval loss':>9} {'cost $':>7}")
+    if budget and max_steps < 0:
+        estimates = {n: estimate_run_cost(c) + (estimate_eval_cost(c["base_model"]) if evaluate else 0.0)
+                     for n, c in configs.items()}
+        spent = metered_cost()
+        if spent is None:
+            raise SystemExit("could not read `modal billing summary`; rerun without --budget to skip the check")
+        planned = sum(estimates.values())
+        print(f"spent this month ${spent:.2f} + planned ${planned:.2f} (est.) vs budget ${budget:.2f}")
+        if spent + planned > budget:
+            room, fits = budget - spent, []
+            for n, cost in estimates.items():
+                if cost <= room:
+                    fits.append(n)
+                    room -= cost
+            raise SystemExit(f"over budget; runs that fit: {','.join(fits) or 'none'}")
+
+    calls = []
+    for name, cfg in configs.items():
+        spec = cfg["gpu"] if cfg["n_gpus"] == 1 else f"{cfg['gpu']}:{cfg['n_gpus']}"
+        print(f"launching {name} on {spec}" + (f" (max_steps={max_steps})" if max_steps > 0 else ""))
+        calls.append((name, train.with_options(gpu=spec).spawn(name, cfg["gpu"], cfg["n_gpus"], max_steps)))
+
+    total, done = 0.0, []
+    print(f"\n{'run':<9} {'method':<6} {'steps':>5} {'tok/s':>9} {'mem GB':>7} {'eval loss':>9} {'cost $':>7}")
     for name, call in calls:
         try:
             s = call.get()
         except Exception as exc:  # keep collecting the other runs
-            print(f"{name:<6} FAILED: {exc}")
+            print(f"{name:<9} FAILED: {exc}")
             continue
         total += s["container_cost_usd"]
+        done.append(name)
+        local = PROJECT_DIR / "outputs" / "runs" / name
+        local.mkdir(parents=True, exist_ok=True)
+        (local / "summary.json").write_text(json.dumps(s | {"modal_profile": modal.config._profile}, indent=2))
         print(
-            f"{name:<6} {s['method']:<6} {s['steps']:>5} {s['tokens_per_second']:>9,.0f} "
+            f"{name:<9} {s['method']:<6} {s['steps']:>5} {s['tokens_per_second']:>9,.0f} "
             f"{s['peak_gpu_mem_gb']:>7} {s['final_eval_loss']:>9} {s['container_cost_usd']:>7.2f}"
         )
     print(f"\ntotal GPU cost (est., excludes CPU/RAM): ${total:.2f}")
+
+    if evaluate and done and max_steps < 0:
+        print(f"\ngenerating eval completions for {len(done)} runs")
+        subprocess.run(["modal", "run", str(PROJECT_DIR / "eval" / "modal_generate.py"), "--models", ",".join(done)],
+                       check=True)
