@@ -29,7 +29,9 @@ def main() -> None:
     parser.add_argument("--out", default="results/selection.json")
     args = parser.parse_args()
 
-    selection = {}
+    out = Path(args.out)
+    # Merge into earlier selections so sizes can be chosen one at a time.
+    selection = json.loads(out.read_text()) if out.exists() else {}
     for size in args.sizes.split(","):
         candidates = []
         for run in list_runs(grid_size=size):
@@ -52,7 +54,7 @@ def main() -> None:
         print(f"{size}: best {candidates[0]['run']} ({candidates[0]['val_passed']}/{candidates[0]['val_n']} val); "
               f"by family {by_family}" + (f"  [{missing} runs not scored yet]" if missing else ""))
 
-    Path(args.out).write_text(json.dumps(selection, indent=2))
+    out.write_text(json.dumps(selection, indent=2))
 
 
 if __name__ == "__main__":
