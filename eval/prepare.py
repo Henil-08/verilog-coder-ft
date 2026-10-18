@@ -9,7 +9,8 @@ VerilogEval: a problem is valid when its reference, dropped in as TopModule, pas
 its own testbench under the official harness.
 
 Usage:
-    uv run python -m eval.prepare   # writes test_eligibility.jsonl, verilog_eval_invalid.json
+    uv run python -m eval.prepare               # test_eligibility.jsonl + verilog_eval_invalid.json
+    uv run python -m eval.prepare --split val   # val_eligibility.jsonl (used for model selection)
 """
 
 import argparse
@@ -41,6 +42,8 @@ def zero_stub(code: str, top: str) -> str | None:
 
 def check_row(row: dict) -> dict:
     top, ref = row["module"], row["code"]
+    if not top:
+        return {"id": row["id"], "category": row["category"], "eligible": False, "reason": "no_module_name"}
     self_check = diff_sim(ref, ref, top)
     result = {"id": row["id"], "category": row["category"], "self_check": self_check.status}
     if not self_check.passed:
@@ -68,24 +71,26 @@ def invalid_verilog_eval_problems(workers: int) -> list[str]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--test-file", default="data/processed/test.jsonl")
-    parser.add_argument("--out", default="data/processed/test_eligibility.jsonl")
+    parser.add_argument("--split", choices=["test", "val"], default="test")
     parser.add_argument("--ve-out", default="data/processed/verilog_eval_invalid.json")
     parser.add_argument("--workers", type=int, default=os.cpu_count())
     parser.add_argument("--skip-openrtl", action="store_true")
     args = parser.parse_args()
+    split_file = f"data/processed/{args.split}.jsonl"
+    out_file = f"data/processed/{args.split}_eligibility.jsonl"
 
-    invalid = invalid_verilog_eval_problems(args.workers)
-    Path(args.ve_out).write_text(json.dumps(invalid, indent=2))
-    print(f"verilog_eval: {len(invalid)} problems fail with their own reference: {invalid}")
+    if args.split == "test":
+        invalid = invalid_verilog_eval_problems(args.workers)
+        Path(args.ve_out).write_text(json.dumps(invalid, indent=2))
+        print(f"verilog_eval: {len(invalid)} problems fail with their own reference: {invalid}")
     if args.skip_openrtl:
         return
 
-    rows = [json.loads(line) for line in open(args.test_file)]
+    rows = [json.loads(line) for line in open(split_file)]
     with ThreadPoolExecutor(args.workers) as ex:
         results = list(ex.map(check_row, rows))
 
-    Path(args.out).write_text("".join(json.dumps(r) + "\n" for r in results))
+    Path(out_file).write_text("".join(json.dumps(r) + "\n" for r in results))
     eligible = [r for r in results if r["eligible"]]
     print(f"eligible: {len(eligible)}/{len(results)}")
     print("by category:", dict(Counter(r["category"] for r in eligible)))
