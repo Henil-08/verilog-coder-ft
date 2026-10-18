@@ -27,6 +27,9 @@ vllm = [
 mlx = [
     "mlx-lm>=0.30 ; sys_platform == 'darwin'",
 ]
+ui = [
+    "streamlit>=1.40",
+]
 
 [dependency-groups]
 dev = [
