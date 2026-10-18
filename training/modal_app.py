@@ -7,13 +7,13 @@
     # long jobs: detach so they survive the local client disconnecting, then collect
     uv run modal deploy eval/modal_generate.py                                 # once per workspace
     uv run modal run --detach training/modal_app.py::main --runs grid:3B --evaluate --budget 28
-    uv run modal run training/modal_app.py::collect --runs grid:3B
+    uv run python -m training.collect --runs grid:3B
 
 --budget refuses to launch if this month's metered spend plus the estimated cost of
 the queued runs would exceed it. --evaluate makes each training container hand its
 model to the deployed generation app when it finishes, so evaluation needs no local
-process either. `collect` copies run summaries and generations from the volume to
-outputs/; adapters and weights stay on the `verilog-ft-runs` volume:
+process either. training/collect.py copies run summaries and generations from the
+volume to outputs/; adapters and weights stay on the `verilog-ft-runs` volume:
     uv run modal volume get verilog-ft-runs runs/L2/model ./L2-adapter
 """
 
@@ -156,25 +156,4 @@ def main(runs: str, max_steps: int = -1, gpu: str = "", n_gpus: int = 0, evaluat
 
     if evaluate and done:
         print("generation was handed to the deployed app; fetch everything later with "
-              f"`modal run training/modal_app.py::collect --runs {','.join(done)}`")
-
-
-@app.local_entrypoint()
-def collect(runs: str):
-    """Copy summaries and generations for `runs` from the volume into outputs/."""
-    for name in expand_runs(runs):
-        files = {f"runs/{name}/summary.json": PROJECT_DIR / "outputs" / "runs" / name / "summary.json",
-                 f"generations/{name}.jsonl": PROJECT_DIR / "outputs" / "generations" / f"{name}.jsonl"}
-        status = []
-        for remote, local in files.items():
-            try:
-                data = b"".join(runs_volume.read_file(remote))
-            except Exception:  # not written yet (still running) or the run failed
-                status.append(f"{Path(remote).name}: missing")
-                continue
-            local.parent.mkdir(parents=True, exist_ok=True)
-            if local.suffix == ".json":
-                data = json.dumps(json.loads(data) | {"modal_profile": modal.config._profile}, indent=2).encode()
-            local.write_bytes(data)
-            status.append(f"{Path(remote).name}: ok")
-        print(f"{name:<9} " + ", ".join(status))
+              f"`python -m training.collect --runs {','.join(done)}`")
