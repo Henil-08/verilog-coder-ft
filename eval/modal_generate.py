@@ -49,6 +49,27 @@ image = (
 # (spaces dropped or inserted on encode and decode). They are served with a generic
 # fast tokenizer built from their own tokenizer.json, which round-trips exactly.
 GENERIC_TOKENIZER_MODELS = {"ishorn5/RTLCoder-Deepseek-v1.1", "yang-z/CodeV-QW-7B"}
+# Byte-level BPE models whose text vLLM still returns as raw byte symbols (Ġ, Ċ, ...).
+BYTE_LEVEL_TEXT_MODELS = {"ishorn5/RTLCoder-Deepseek-v1.1"}
+
+
+def _byte_decoder() -> dict[str, int]:
+    """Inverse of GPT-2's bytes_to_unicode table."""
+    bs = list(range(ord("!"), ord("~") + 1)) + list(range(ord("¡"), ord("¬") + 1)) + list(range(ord("®"), ord("ÿ") + 1))
+    cs = bs[:]
+    n = 0
+    for b in range(256):
+        if b not in bs:
+            bs.append(b)
+            cs.append(256 + n)
+            n += 1
+    return {chr(c): b for b, c in zip(bs, cs)}
+
+
+def byte_level_to_text(text: str) -> str:
+    """Turn byte-level BPE symbols back into text (exact inverse of the byte mapping)."""
+    table = _byte_decoder()
+    return bytes(table[ch] for ch in text if ch in table).decode("utf-8", errors="replace")
 
 
 def generic_tokenizer_dir(model: str) -> str:
@@ -110,13 +131,14 @@ def generate(model: str, variants: list[dict], items: list[dict], suffix: str = 
         rows, total_tokens = [], 0
         for it, out in zip(items, outputs):
             completion = out.outputs[0]
+            text = byte_level_to_text(completion.text) if model in BYTE_LEVEL_TEXT_MODELS else completion.text
             total_tokens += len(completion.token_ids)
             rows.append({
                 "model": variant["tag"],
                 "benchmark": it["benchmark"],
                 "id": it["id"],
-                "response": completion.text,
-                "code": extract_code(completion.text),
+                "response": text,
+                "code": extract_code(text),
                 "output_tokens": len(completion.token_ids),
                 "finish_reason": completion.finish_reason,
             })
