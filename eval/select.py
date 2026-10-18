@@ -1,4 +1,4 @@
-"""Pick the best fine-tuned run per model size on the validation split.
+"""Pick the best fine-tuned run per model size (and per method family) on the validation split.
 
 Selection uses only `openrtl_val` (diff-sim pass@1 on held-out validation modules),
 so the test benchmarks stay untouched by the choice. Ties go to the cheaper run.
@@ -43,10 +43,14 @@ def main() -> None:
             print(f"{size}: no scored runs yet")
             continue
         candidates.sort(key=lambda c: (-c["val_passed"], c["cost_usd"]))
-        selection[size] = {"best": candidates[0]["run"], "candidates": candidates}
-        missing = 9 - len(candidates)
-        print(f"{size}: best {candidates[0]['run']} ({candidates[0]['val_passed']}/{candidates[0]['val_n']} val)"
-              + (f"  [{missing} runs not scored yet]" if missing else ""))
+        # Families: L = LoRA, Q = QLoRA, F = full fine-tune (first letter of the method key).
+        by_family = {}
+        for c in candidates:
+            by_family.setdefault(c["run"].rsplit("-", 1)[1][0], c["run"])
+        selection[size] = {"best": candidates[0]["run"], "best_by_family": by_family, "candidates": candidates}
+        missing = len(list_runs(grid_size=size)) - len(candidates)
+        print(f"{size}: best {candidates[0]['run']} ({candidates[0]['val_passed']}/{candidates[0]['val_n']} val); "
+              f"by family {by_family}" + (f"  [{missing} runs not scored yet]" if missing else ""))
 
     Path(args.out).write_text(json.dumps(selection, indent=2))
 
