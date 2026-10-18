@@ -2,15 +2,18 @@
 
     uv run modal run training/modal_app.py --runs L2 --max-steps 20          # pilot
     uv run modal run training/modal_app.py --runs L1,L2,L3,Q1,Q2,Q3,F1,F2,F3  # ablation grid, in parallel
-    uv run modal run training/modal_app.py --runs grid:3B --evaluate --budget 27  # one grid size, then evaluate
     uv run modal run training/modal_app.py --runs F2 --n-gpus 2               # override GPU count
 
---budget refuses to launch if this month's metered spend plus the estimated cost of
-the queued runs would exceed it. --evaluate generates completions for every successful
-run afterwards (eval/modal_generate.py) so they can be scored locally.
+    # long jobs: detach so they survive the local client disconnecting, then collect
+    uv run modal deploy eval/modal_generate.py                                 # once per workspace
+    uv run modal run --detach training/modal_app.py --runs grid:3B --evaluate --budget 28
+    uv run modal run training/modal_app.py::collect --runs grid:3B
 
-Run summaries are copied to outputs/runs/<run>/summary.json; adapters and weights
-stay on the `verilog-ft-runs` volume:
+--budget refuses to launch if this month's metered spend plus the estimated cost of
+the queued runs would exceed it. --evaluate makes each training container hand its
+model to the deployed generation app when it finishes, so evaluation needs no local
+process either. `collect` copies run summaries and generations from the volume to
+outputs/; adapters and weights stay on the `verilog-ft-runs` volume:
     uv run modal volume get verilog-ft-runs runs/L2/model ./L2-adapter
 """
 
@@ -50,9 +53,9 @@ image = (
     volumes={"/vol": runs_volume, "/cache": hf_cache},
     secrets=[modal.Secret.from_name("wandb-secret"), modal.Secret.from_name("huggingface-secret")],
 )
-def train(run: str, gpu: str, n_gpus: int, max_steps: int = -1) -> dict:
+def train(run: str, gpu: str, n_gpus: int, max_steps: int = -1, evaluate: bool = False) -> dict:
     sys.path.insert(0, REMOTE_DIR)
-    from training.config import estimate_cost
+    from training.config import estimate_cost, load_run
 
     start = time.time()
     cmd = [
@@ -73,6 +76,18 @@ def train(run: str, gpu: str, n_gpus: int, max_steps: int = -1) -> dict:
     summary = json.loads(summary_path.read_text())
     summary["container_seconds"] = round(time.time() - start, 1)
     summary["container_cost_usd"] = estimate_cost(gpu, n_gpus, summary["container_seconds"])
+    runs_volume.commit()
+
+    if evaluate and max_steps < 0:
+        # Hand off to the deployed generation app (modal deploy eval/modal_generate.py);
+        # it runs independently of this container and of the local client.
+        cfg = load_run(run)
+        model_dir = f"{RUNS_DIR}/{run}/model"
+        model, adapter = (model_dir, None) if cfg["method"] == "full" else (cfg["base_model"], model_dir)
+        items = [json.loads(line) for line in open(Path(REMOTE_DIR) / "data/processed/eval_items.jsonl")]
+        generate = modal.Function.from_name("verilog-coder-ft-generate", "generate")
+        call = generate.spawn(model, [{"tag": run, "adapter": adapter}], items)
+        summary["generation_call_id"] = call.object_id
     summary_path.write_text(json.dumps(summary, indent=2))
     runs_volume.commit()
     return summary
@@ -118,7 +133,7 @@ def main(runs: str, max_steps: int = -1, gpu: str = "", n_gpus: int = 0, evaluat
     for name, cfg in configs.items():
         spec = cfg["gpu"] if cfg["n_gpus"] == 1 else f"{cfg['gpu']}:{cfg['n_gpus']}"
         print(f"launching {name} on {spec}" + (f" (max_steps={max_steps})" if max_steps > 0 else ""))
-        calls.append((name, train.with_options(gpu=spec).spawn(name, cfg["gpu"], cfg["n_gpus"], max_steps)))
+        calls.append((name, train.with_options(gpu=spec).spawn(name, cfg["gpu"], cfg["n_gpus"], max_steps, evaluate)))
 
     total, done = 0.0, []
     print(f"\n{'run':<9} {'method':<6} {'steps':>5} {'tok/s':>9} {'mem GB':>7} {'eval loss':>9} {'cost $':>7}")
@@ -139,7 +154,27 @@ def main(runs: str, max_steps: int = -1, gpu: str = "", n_gpus: int = 0, evaluat
         )
     print(f"\ntotal GPU cost (est., excludes CPU/RAM): ${total:.2f}")
 
-    if evaluate and done and max_steps < 0:
-        print(f"\ngenerating eval completions for {len(done)} runs")
-        subprocess.run(["modal", "run", str(PROJECT_DIR / "eval" / "modal_generate.py"), "--models", ",".join(done)],
-                       check=True)
+    if evaluate and done:
+        print("generation was handed to the deployed app; fetch everything later with "
+              f"`modal run training/modal_app.py::collect --runs {','.join(done)}`")
+
+
+@app.local_entrypoint()
+def collect(runs: str):
+    """Copy summaries and generations for `runs` from the volume into outputs/."""
+    for name in expand_runs(runs):
+        files = {f"runs/{name}/summary.json": PROJECT_DIR / "outputs" / "runs" / name / "summary.json",
+                 f"generations/{name}.jsonl": PROJECT_DIR / "outputs" / "generations" / f"{name}.jsonl"}
+        status = []
+        for remote, local in files.items():
+            try:
+                data = b"".join(runs_volume.read_file(remote))
+            except Exception:  # not written yet (still running) or the run failed
+                status.append(f"{Path(remote).name}: missing")
+                continue
+            local.parent.mkdir(parents=True, exist_ok=True)
+            if local.suffix == ".json":
+                data = json.dumps(json.loads(data) | {"modal_profile": modal.config._profile}, indent=2).encode()
+            local.write_bytes(data)
+            status.append(f"{Path(remote).name}: ok")
+        print(f"{name:<9} " + ", ".join(status))
