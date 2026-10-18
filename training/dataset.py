@@ -28,10 +28,12 @@ def tokenize_example(row: dict, tokenizer, max_seq_len: int) -> dict:
 
 def load_sft_dataset(path: str, tokenizer, max_seq_len: int, num_proc: int = 4) -> Dataset:
     ds = load_dataset("json", data_files=path, split="train")
-    return ds.map(
+    ds = ds.map(
         tokenize_example,
         fn_kwargs={"tokenizer": tokenizer, "max_seq_len": max_seq_len},
         remove_columns=ds.column_names,
         num_proc=num_proc,
         desc=f"tokenizing {path}",
     )
+    # A prompt longer than max_seq_len leaves no supervised tokens and a NaN loss.
+    return ds.filter(lambda ex: any(label != IGNORE_INDEX for label in ex["labels"]), num_proc=num_proc)
