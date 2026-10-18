@@ -37,3 +37,7 @@ def test_prompt_roundtrip():
     assert [m["role"] for m in msgs] == ["system", "user", "assistant"]
     assert extract_code(msgs[-1]["content"]) == row["code"]
     assert extract_code("no fence here") == "no fence here"
+
+
+def test_extract_unterminated_fence():
+    assert extract_code("```verilog\nmodule a;\nwire x;") == "module a;\nwire x;"

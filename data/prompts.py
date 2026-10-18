@@ -9,6 +9,7 @@ SYSTEM_PROMPT = (
 )
 
 _CODE_BLOCK = re.compile(r"```(?:verilog|systemverilog|sv|v)?\s*\n(.*?)```", re.DOTALL)
+_OPEN_FENCE = re.compile(r"```(?:verilog|systemverilog|sv|v)?\s*\n(.*)", re.DOTALL)
 
 
 def user_message(description: str, ioheader: str | None = None) -> str:
@@ -34,6 +35,10 @@ def build_training_messages(row: dict) -> list[dict]:
 
 
 def extract_code(text: str) -> str:
-    """Pull the first fenced code block out of a model response, else return it whole."""
-    match = _CODE_BLOCK.search(text)
+    """Pull the first fenced code block out of a model response, else return it whole.
+
+    A response cut off at the token limit has an opening fence but no closing one;
+    everything after the opening fence is taken in that case.
+    """
+    match = _CODE_BLOCK.search(text) or _OPEN_FENCE.search(text)
     return (match.group(1) if match else text).strip()
