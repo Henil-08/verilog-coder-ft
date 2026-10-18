@@ -35,6 +35,15 @@ def model_card(run: str, size: str, merged: bool) -> str:
     base = summarize(load_results(base_tag), None)
     tuned = summarize(load_results(run), load_results(base_tag))
     license_id, license_name, license_link = LICENSES.get(size, ("apache-2.0", None, None))
+    regression = ""
+    if tuned["verilog_eval"]["pass@1"] < base["verilog_eval"]["pass@1"]:
+        regression = (
+            f"- **On VerilogEval this fine-tune scores below its base model** "
+            f"({100 * tuned['verilog_eval']['pass@1']:.1f}% vs {100 * base['verilog_eval']['pass@1']:.1f}% "
+            "with the published prompts). Fine-tuning on OpenRTLSet's real-world modules and "
+            "LLM-written descriptions improved held-out OpenRTLSet modules but cost accuracy on "
+            "VerilogEval's textbook-style problems; for that style of task the base model is the better choice.\n"
+        )
 
     method = {"lora": "LoRA", "qlora": "QLoRA (NF4 base)", "full": "full fine-tuning"}[cfg["method"]]
     adapter = "" if cfg["method"] == "full" else (
@@ -111,7 +120,7 @@ capability.
 
 ## Limitations
 
-- Greedy decoding sometimes falls into repetition loops on long modules; about
+{regression}- Greedy decoding sometimes falls into repetition loops on long modules; about
   {100 * tuned['truncated_outputs'] / 1312:.0f}% of eval outputs hit the 2048-token cap.
 - Trained on single-module completions; multi-module designs and testbenches are out of
   scope. Not evaluated for synthesis quality, timing, or area.
