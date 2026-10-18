@@ -63,6 +63,65 @@ def score_ve(gen: dict, problem: dict, valid: bool, clean: bool) -> dict:
     }
 
 
+SPLITS = {"openrtl": "test", "openrtl_val": "val"}
+KEEP = ("model", "benchmark", "id", "output_tokens", "finish_reason", "code")
+
+
+def load_context(processed_dir: str | Path = "data/processed") -> dict:
+    """Everything needed to score any item: references, eligibility, VerilogEval flags."""
+    proc = Path(processed_dir)
+    rows, eligible = {}, {}
+    for bench, split in SPLITS.items():
+        if (proc / f"{split}_eligibility.jsonl").exists():
+            rows[bench] = {r["id"]: r for r in load_jsonl(proc / f"{split}.jsonl")}
+            eligible[bench] = {r["id"]: r["eligible"] for r in load_jsonl(proc / f"{split}_eligibility.jsonl")}
+    return {
+        "rows": rows,
+        "eligible": eligible,
+        "problems": {p["id"]: p for p in load_problems()},
+        # Problems whose reference fails its own testbench under the official harness.
+        "invalid": set(json.loads((proc / "verilog_eval_invalid.json").read_text())),
+        "flagged": {f["problem"] for f in json.load(open(proc / "contamination.json"))["flagged"]},
+    }
+
+
+def score_item(gen: dict, ctx: dict) -> dict:
+    gen = gen | {"code": extract_code(gen["response"])}
+    bench = gen["benchmark"]
+    if bench in SPLITS:
+        scored = score_openrtl(gen, ctx["rows"][bench][gen["id"]], ctx["eligible"][bench][gen["id"]])
+    else:
+        pid = gen["id"]
+        scored = score_ve(gen, ctx["problems"][pid], pid not in ctx["invalid"], pid not in ctx["flagged"])
+    return {k: gen[k] for k in KEEP} | scored
+
+
+def pending(generation_files: list[str], out_dir: str | Path, force: bool = False) -> dict[str, tuple[list, list]]:
+    """Per model: (already-scored results, generations still to score)."""
+    by_model: dict[str, list[dict]] = defaultdict(list)
+    for path in generation_files:
+        for gen in load_jsonl(path):
+            by_model[gen["model"]].append(gen)
+    out = {}
+    for model, gens in by_model.items():
+        out_path = Path(out_dir) / f"{model}.jsonl"
+        previous = [] if force or not out_path.exists() else load_jsonl(out_path)
+        done = {(r["benchmark"], r["id"]) for r in previous}
+        out[model] = (previous, [g for g in gens if (g["benchmark"], g["id"]) not in done])
+    return out
+
+
+def write_results(model: str, results: list[dict], out_dir: str | Path) -> None:
+    Path(out_dir).mkdir(exist_ok=True)
+    Path(out_dir, f"{model}.jsonl").write_text("".join(json.dumps(r) + "\n" for r in results))
+    line = f"{model:<32}"
+    for bench in ("openrtl", "openrtl_val", "verilog_eval", "verilog_eval_iface"):
+        scored = [r for r in results if r["benchmark"] == bench and r.get("eligible", True)]
+        if scored:
+            line += f"   {bench} {sum(bool(r['passed']) for r in scored)}/{len(scored)}"
+    print(line)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("generations", nargs="+")
@@ -72,54 +131,14 @@ def main() -> None:
     parser.add_argument("--force", action="store_true", help="rescore items that already have results")
     args = parser.parse_args()
 
-    proc = Path(args.processed_dir)
-    splits = {"openrtl": "test", "openrtl_val": "val"}
-    rows, eligible = {}, {}
-    for bench, split in splits.items():
-        if (proc / f"{split}_eligibility.jsonl").exists():
-            rows[bench] = {r["id"]: r for r in load_jsonl(proc / f"{split}.jsonl")}
-            eligible[bench] = {r["id"]: r["eligible"] for r in load_jsonl(proc / f"{split}_eligibility.jsonl")}
-    problems = {p["id"]: p for p in load_problems()}
-    # Problems whose reference fails its own testbench under the official harness.
-    invalid = set(json.loads((proc / "verilog_eval_invalid.json").read_text()))
-    flagged = {f["problem"] for f in json.load(open(proc / "contamination.json"))["flagged"]}
-
-    out_dir = Path(args.out_dir)
-    out_dir.mkdir(exist_ok=True)
-    by_model: dict[str, list[dict]] = defaultdict(list)
-    for path in args.generations:
-        for gen in load_jsonl(path):
-            by_model[gen["model"]].append(gen | {"code": extract_code(gen["response"])})
-
-    for model, gens in by_model.items():
-        out_path = out_dir / f"{model}.jsonl"
-        # Results accumulate: only items without a result yet are scored (unless --force).
-        previous = [] if args.force or not out_path.exists() else load_jsonl(out_path)
-        done = {(r["benchmark"], r["id"]) for r in previous}
-        todo = [g for g in gens if (g["benchmark"], g["id"]) not in done]
+    ctx = load_context(args.processed_dir)
+    for model, (previous, todo) in pending(args.generations, args.out_dir, args.force).items():
         if not todo:
             print(f"skip {model} (all {len(previous)} items scored)")
             continue
-
-        def work(gen: dict) -> dict:
-            bench = gen["benchmark"]
-            if bench in splits:
-                scored = score_openrtl(gen, rows[bench][gen["id"]], eligible[bench][gen["id"]])
-            else:
-                pid = gen["id"]
-                scored = score_ve(gen, problems[pid], pid not in invalid, pid not in flagged)
-            keep = ("model", "benchmark", "id", "output_tokens", "finish_reason", "code")
-            return {k: gen[k] for k in keep} | scored
-
         with ThreadPoolExecutor(args.workers) as ex:
-            results = previous + list(ex.map(work, todo))
-        out_path.write_text("".join(json.dumps(r) + "\n" for r in results))
-        line = f"{model:<32}"
-        for bench in ("openrtl", "openrtl_val", "verilog_eval", "verilog_eval_iface"):
-            scored = [r for r in results if r["benchmark"] == bench and r.get("eligible", True)]
-            if scored:
-                line += f"   {bench} {sum(bool(r['passed']) for r in scored)}/{len(scored)}"
-        print(line)
+            results = previous + list(ex.map(lambda g: score_item(g, ctx), todo))
+        write_results(model, results, args.out_dir)
 
 
 if __name__ == "__main__":
