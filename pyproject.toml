@@ -3,4 +3,8 @@ name = "verilog-coder-ft"
 version = "0.1.0"
 description = "LoRA fine-tune of a small open coder LLM for Verilog/SystemVerilog generation, with Verilator-based functional eval and MLX/vLLM inference"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "datasets>=3.0",
+    "pyyaml>=6.0.3",
+    "transformers>=4.46",
+]
