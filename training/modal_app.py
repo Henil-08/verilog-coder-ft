@@ -1,12 +1,12 @@
 """Launch training runs on Modal GPUs.
 
-    uv run modal run training/modal_app.py --runs L2 --max-steps 20          # pilot
-    uv run modal run training/modal_app.py --runs L1,L2,L3,Q1,Q2,Q3,F1,F2,F3  # ablation grid, in parallel
-    uv run modal run training/modal_app.py --runs F2 --n-gpus 2               # override GPU count
+    uv run modal run training/modal_app.py::main --runs L2 --max-steps 20          # pilot
+    uv run modal run training/modal_app.py::main --runs L1,L2,L3,Q1,Q2,Q3,F1,F2,F3  # ablation grid, in parallel
+    uv run modal run training/modal_app.py::main --runs F2 --n-gpus 2               # override GPU count
 
     # long jobs: detach so they survive the local client disconnecting, then collect
     uv run modal deploy eval/modal_generate.py                                 # once per workspace
-    uv run modal run --detach training/modal_app.py --runs grid:3B --evaluate --budget 28
+    uv run modal run --detach training/modal_app.py::main --runs grid:3B --evaluate --budget 28
     uv run modal run training/modal_app.py::collect --runs grid:3B
 
 --budget refuses to launch if this month's metered spend plus the estimated cost of
@@ -78,7 +78,7 @@ def train(run: str, gpu: str, n_gpus: int, max_steps: int = -1, evaluate: bool =
     summary["container_cost_usd"] = estimate_cost(gpu, n_gpus, summary["container_seconds"])
     runs_volume.commit()
 
-    if evaluate and max_steps < 0:
+    if evaluate:
         # Hand off to the deployed generation app (modal deploy eval/modal_generate.py);
         # it runs independently of this container and of the local client.
         cfg = load_run(run)
