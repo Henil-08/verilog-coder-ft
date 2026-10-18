@@ -62,3 +62,18 @@ def all_items(benchmarks=BENCHMARKS) -> list[dict]:
     if "verilog_eval_iface" in benchmarks:
         items += verilog_eval_items(with_interface=True)
     return items
+
+
+ITEMS_PATH = "data/processed/eval_items.jsonl"
+
+
+def write_items(path: str = ITEMS_PATH) -> int:
+    """Precompute every eval prompt, so remote jobs need no benchmark files of their own."""
+    items = all_items()
+    with open(path, "w") as f:
+        f.writelines(json.dumps(it) + "\n" for it in items)
+    return len(items)
+
+
+if __name__ == "__main__":
+    print(f"wrote {write_items()} items to {ITEMS_PATH}")
