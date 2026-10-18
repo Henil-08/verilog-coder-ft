@@ -18,6 +18,7 @@ class Generation:
     output_tokens: int | None = None
     tokens_per_second: float | None = None  # decode speed, excluding prompt processing
     finish_reason: str | None = None
+    peak_memory_gb: float | None = None
 
     @property
     def code(self) -> str:

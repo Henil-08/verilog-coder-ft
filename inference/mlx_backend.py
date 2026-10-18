@@ -9,9 +9,11 @@ class MLXBackend(Backend):
     name = "mlx"
 
     def __init__(self, model: str, adapter_path: str | None = None):
+        import mlx.core as mx
         from mlx_lm import load
 
         super().__init__(model)
+        mx.reset_peak_memory()  # so peak_memory_gb reflects this model, not an earlier one
         self._model, self._tokenizer = load(model, adapter_path=adapter_path)
 
     def _prompt(self, messages: list[dict]) -> str:
@@ -40,6 +42,7 @@ class MLXBackend(Backend):
             output_tokens=last.generation_tokens if last else None,
             tokens_per_second=round(last.generation_tps, 1) if last else None,
             finish_reason=last.finish_reason if last else None,
+            peak_memory_gb=round(last.peak_memory, 2) if last else None,
         )
 
     def stream(self, messages: list[dict], max_tokens: int = DEFAULT_MAX_TOKENS,
