@@ -2,9 +2,9 @@
 
 Runs are defined in configs/experiments.yaml. GPU count comes from the launcher:
 
-    uv run python -m training.train --run smoke --no-wandb          # local smoke test
-    torchrun --nproc_per_node 1 -m training.train --run L2          # one GPU
-    torchrun --nproc_per_node 2 -m training.train --run F2          # two GPUs, ZeRO shards across both
+    uv run python -m training.train --experiment smoke --no-wandb          # local smoke test
+    torchrun --nproc_per_node 1 -m training.train --experiment L2          # one GPU
+    torchrun --nproc_per_node 2 -m training.train --experiment F2          # two GPUs, ZeRO shards across both
 """
 
 import argparse
@@ -82,14 +82,14 @@ def dir_size_mb(path: Path) -> float:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--run", required=True, help="run name from configs/experiments.yaml")
+    parser.add_argument("--experiment", required=True, help="run name from configs/experiments.yaml")
     parser.add_argument("--output-root", default="outputs/runs")
     parser.add_argument("--max-steps", type=int, default=-1, help="stop early (pilot runs)")
     parser.add_argument("--no-deepspeed", action="store_true")
     parser.add_argument("--no-wandb", action="store_true")
     args = parser.parse_args()
 
-    cfg = load_run(args.run)
+    cfg = load_run(args.experiment)
     if args.no_deepspeed or not torch.cuda.is_available():
         cfg["deepspeed"] = None
     world_size = int(os.environ.get("WORLD_SIZE", 1))
