@@ -1,6 +1,6 @@
 """Publish a fine-tuned run to the Hugging Face Hub with a generated model card.
 
-    uv run --extra train python -m inference.push_hub --run 7B-L3 --name ft-7b --owner henil08
+    uv run --extra train python -m inference.push_hub --run 7B-L3 --name ft-7b --owner henil08 --extras
 
 Pushes the adapter (LoRA/QLoRA runs) to <owner>/verilog-coder-<size>-lora and the merged
 weights (models/merged/<name>, from inference/convert.py) to <owner>/verilog-coder-<size>.
@@ -149,6 +149,7 @@ def main() -> None:
     parser.add_argument("--name", required=True, help="local build name, e.g. ft-7b")
     parser.add_argument("--owner", default="henil08")
     parser.add_argument("--dry-run", action="store_true", help="write cards to outputs/cards/ only")
+    parser.add_argument("--extras", action="store_true", help="also push the MLX 4-bit and GGUF builds")
     args = parser.parse_args()
 
     from huggingface_hub import HfApi
@@ -173,6 +174,29 @@ def main() -> None:
         (folder / "README.md").write_text(card)
         api.upload_folder(repo_id=repo, folder_path=str(folder), ignore_patterns=["training_args.bin"],
                           commit_message=f"Upload {args.run}")
+        print(f"pushed https://huggingface.co/{repo}")
+
+    if args.extras and not args.dry_run:
+        push_extras(api, args.owner, size, args.name)
+
+
+def push_extras(api, owner: str, size: str, name: str) -> None:
+    """MLX 4-bit and GGUF builds, each with a short card pointing at the main repo."""
+    main = f"{owner}/verilog-coder-{size.lower()}"
+    builds = [
+        (f"{main}-mlx-4bit", ROOT / "models" / "mlx" / f"{name}-4bit", None,
+         f"MLX 4-bit build of [{main}](https://huggingface.co/{main}) for Apple Silicon.\n\n"
+         f"```bash\nmlx_lm.generate --model {main}-mlx-4bit --prompt \"Specification: 4-bit counter\"\n```"),
+        (f"{main}-gguf", ROOT / "models" / "gguf", f"{name}*",
+         f"GGUF (Q4_K_M) build of [{main}](https://huggingface.co/{main}) for llama.cpp / Ollama.\n\n"
+         f"```bash\nollama run hf.co/{main}-gguf\n```"),
+    ]
+    for repo, folder, pattern, body in builds:
+        api.create_repo(repo, exist_ok=True)
+        api.upload_file(path_or_fileobj=f"---\nbase_model: {main}\ntags:\n- verilog\n---\n\n{body}\n".encode(),
+                        path_in_repo="README.md", repo_id=repo)
+        api.upload_folder(repo_id=repo, folder_path=str(folder), allow_patterns=[pattern] if pattern else None,
+                          ignore_patterns=["*.Modelfile"], commit_message="Upload build")
         print(f"pushed https://huggingface.co/{repo}")
 
 
