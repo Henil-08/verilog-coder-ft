@@ -27,8 +27,8 @@ MEASURED_SIZE_FACTOR = {
 PARAMS_B = {"0.5B": 0.49, "1.5B": 1.54, "3B": 3.09, "7B": 7.62, "14B": 14.8}
 GPU_SPEED = {"H100": 1.0, "H200": 1.2, "A100-80GB": 0.5, "A100-40GB": 0.45, "L40S": 0.4}
 MULTI_GPU_EFFICIENCY = 0.85
-OVERHEAD_SECONDS = 240  # image start, model download, tokenization
-MARGIN = 1.15
+OVERHEAD_SECONDS = 150  # image start, model download, tokenization
+MARGIN = 1.0  # with the overhead above, estimates still run ~10% over actual cost
 # Generation for all benchmarks on one L40S, per model (roughly scales with size).
 EVAL_COST_USD = {"0.5B": 0.2, "1.5B": 0.3, "3B": 0.5, "7B": 1.0, "14B": 1.8}
 
