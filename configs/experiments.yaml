@@ -3,8 +3,10 @@
 # Ablation grid (1.5B, 20k examples): L* = LoRA, Q* = QLoRA (same adapter
 # settings as the matching L* run, NF4 base), F* = full fine-tune.
 # L3i tests a fix for prompt-format dependence: some training prompts describe the
-# ports in prose instead of the header code block. 7B runs use the method picked by
-# the ablation (LoRA r=64) on 40k examples.
+# ports in prose instead of the header code block.
+#
+# `grid` crosses model sizes with the nine methods above on 40k examples with the
+# prose-interface mix; its runs are named <size>-<method>, e.g. 3B-Q2 or 7B-F1.
 
 defaults:
   base_model: Qwen/Qwen2.5-Coder-1.5B-Instruct
@@ -56,16 +58,6 @@ runs:
   # 0.4 of rows drawn -> ~30% actually get prose (parameterized/signed headers keep the block)
   L3i: {<<: *lora_all, lora_r: 64, lora_alpha: 128, learning_rate: 1.0e-4, interface_prose_fraction: 0.4}
 
-  L3_7B: &l3_7b
-    <<: *lora_all
-    base_model: Qwen/Qwen2.5-Coder-7B-Instruct
-    train_file: data/processed/train_40k.jsonl
-    lora_r: 64
-    lora_alpha: 128
-    learning_rate: 1.0e-4
-    micro_batch_size: 4
-  L3i_7B: {<<: *l3_7b, interface_prose_fraction: 0.4}
-
   # Local CPU/MPS smoke test of the training loop; not part of the grid.
   smoke:
     <<: *lora_all
@@ -80,3 +72,25 @@ runs:
     gradient_checkpointing: false
     logging_steps: 1
     eval_steps: 2
+
+grid:
+  common:
+    train_file: data/processed/train_40k.jsonl
+    interface_prose_fraction: 0.4
+  methods: [L1, L2, L3, Q1, Q2, Q3, F1, F2, F3]
+  sizes:
+    1.5B:
+      base_model: Qwen/Qwen2.5-Coder-1.5B-Instruct
+    3B:
+      base_model: Qwen/Qwen2.5-Coder-3B-Instruct
+      full:  # ~50 GB of weights/grads/Adam states: shard across two GPUs
+        n_gpus: 2
+        micro_batch_size: 4
+    7B:
+      base_model: Qwen/Qwen2.5-Coder-7B-Instruct
+      micro_batch_size: 4
+      full:  # ~120 GB of weights/grads/Adam states: ZeRO-3 over two H200s
+        gpu: H200
+        n_gpus: 2
+        micro_batch_size: 2
+        deepspeed: configs/deepspeed/zero3.json
