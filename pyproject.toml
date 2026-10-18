@@ -29,3 +29,7 @@ dev = [
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+
+[tool.uv.extra-build-dependencies]
+# deepspeed only ships an sdist and imports torch in setup.py
+deepspeed = [{ requirement = "torch", match-runtime = true }]
