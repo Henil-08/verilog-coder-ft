@@ -33,6 +33,7 @@ def mcnemar_exact(b: int, c: int) -> float:
 
 SUBSETS = {
     "openrtl": lambda r: r["benchmark"] == "openrtl" and r["eligible"],
+    "openrtl_val": lambda r: r["benchmark"] == "openrtl_val" and r["eligible"],
     "openrtl_verilog": lambda r: r["benchmark"] == "openrtl" and r["eligible"] and r["category"] == "verilog",
     "openrtl_systemverilog": lambda r: r["benchmark"] == "openrtl" and r["eligible"] and r["category"] == "systemverilog",
     "verilog_eval": lambda r: r["benchmark"] == "verilog_eval",
