@@ -5,7 +5,29 @@ scored by **functional correctness** (simulation), not text similarity. Includes
 LoRA vs QLoRA vs full fine-tuning comparison, a CLI, a Streamlit app, and local
 serving on Apple Silicon (MLX), NVIDIA GPUs (vLLM), or anywhere else (Ollama).
 
-<!-- RESULTS-SUMMARY -->
+**Headline results** (pass@1, greedy; best run per size chosen on a validation split):
+
+| Model | OpenRTLSet held-out | VerilogEval v2 | VerilogEval v2 + interface |
+|---|---|---|---|
+| Qwen2.5-Coder-1.5B base | 17.3% | 10.3% | 19.2% |
+| **1.5B fine-tuned** (full, lr 2e-5) | **44.9%** | **26.3%** | **27.6%** |
+| Qwen2.5-Coder-3B base | 25.6% | 18.6% | 23.1% |
+| **3B fine-tuned** (full, lr 2e-5) | **44.7%** | **26.9%** | **28.8%** |
+| Qwen2.5-Coder-7B base | 33.2% | 31.4% | 38.5% |
+| **7B fine-tuned** (LoRA r=64) | **46.5%** | 23.7% | 28.8% |
+| Qwen2.5-Coder-14B base | 37.6% | 37.8% | 44.2% |
+| CodeV-QW-7B (published) | 23.6% | 32.7% | 46.8% |
+| RTLCoder-DeepSeek-6.7B (published) | 19.8% | 10.9% | 23.1% |
+
+- Fine-tuning improves held-out OpenRTLSet modules at every size (p < 0.001); the
+  fine-tuned 1.5B beats the 14B base model there.
+- On VerilogEval it helps 1.5B and 3B but **hurts 7B** (31.4% → 23.7%, McNemar p = 0.05).
+  Details and likely cause under [Results](#results).
+
+Models: [1.5B](https://huggingface.co/henil08/verilog-coder-1.5b) ·
+[3B](https://huggingface.co/henil08/verilog-coder-3b) ·
+[7B](https://huggingface.co/henil08/verilog-coder-7b) ·
+[7B LoRA adapter](https://huggingface.co/henil08/verilog-coder-7b-lora)
 
 ## What's in here
 
@@ -145,7 +167,14 @@ torchrun --nproc_per_node 2 -m training.train --experiment 3B-F2
 would exceed it. Each run writes `summary.json`: tokens/s, peak GPU memory, trainable
 parameters, artifact size, losses, and cost.
 
-<!-- TRAINING-CURVES -->
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="results/figures/training_loss_dark.png">
+  <img alt="Training loss per method and model size" src="results/figures/training_loss_light.png">
+</picture>
+
+The periodic bumps come from length-grouped batching (batches of similar-length
+examples). Cost, memory, and throughput per run: [results/training_efficiency.md](results/training_efficiency.md).
+The final 19 runs cost $57.91 of Modal compute.
 
 ## Evaluation
 
@@ -184,7 +213,64 @@ Caveats: random stimulus is evidence of equivalence, not proof; published checkp
 (CodeV, RTLCoder) are run with this project's prompt through their own chat templates,
 so their numbers are not comparable to their papers' prompts; each config is a single seed.
 
-<!-- RESULTS -->
+## Results
+
+Full per-size tables with confidence intervals, compile rates, and McNemar tests:
+[1.5B](results/grid_1.5B.md) · [3B](results/grid_3B.md) · [7B + references](results/grid_7B.md).
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="results/figures/scaling_dark.png">
+  <img alt="OpenRTLSet pass@1 by model size for base, LoRA, QLoRA and full fine-tuning" src="results/figures/scaling_light.png">
+</picture>
+
+**In-distribution gains are large and consistent.** Every one of the 19 fine-tunes beats
+its base model on the 394 held-out OpenRTLSet modules (p < 0.001 for each). The best
+fine-tuned 1.5B (44.9%) beats the 14B base (37.6%) on that set.
+
+**Transfer to VerilogEval depends on size.** Fine-tuning lifts 1.5B from 10.3% to 26.3%
+and 3B from 18.6% to 26.9%, but lowers 7B from 31.4% to 23.7–26.3% across all three
+methods (best LoRA: 10 problems gained, 22 lost; of the 22, 13 are compile errors and 9
+functional mismatches, and only 1 is a truncated output). The 7B base is already competent on
+VerilogEval's textbook-style specs, and training on OpenRTLSet's real-world modules with
+LLM-written descriptions pulls it toward that distribution. A model meant for both would
+need VerilogEval-style data in the mix.
+
+**Full fine-tuning vs LoRA vs QLoRA.**
+
+OpenRTLSet held-out pass@1 for the run chosen on validation within each method:
+
+| | 1.5B | 3B | 7B |
+|---|---|---|---|
+| Full fine-tune | 44.9% | 44.7% | 48.7% |
+| LoRA | 40.6% (r=64) | 43.6% (r=64) | 46.5% (r=64) |
+| QLoRA | 41.1% (r=64) | 42.1% (r=16) | 45.9% (r=16) |
+| QLoRA vs LoRA peak GPU memory | 33.7 vs 35.6 GB | 35.0 vs 40.6 GB | 23.0 vs 34.7 GB |
+
+- Full fine-tuning is best in-distribution at every size, by 1–4 points over the best LoRA.
+  At 7B it needs two GPUs and produces a 15 GB artifact instead of a 0.3 GB adapter.
+- QLoRA tracks LoRA's quality within about a point. Its memory saving is small at 1.5B
+  (activations dominate) and real at 7B (−12 GB), for 5–20% lower throughput.
+- Rank 8 on attention projections only is clearly worst; rank 16 and rank 64 on all
+  linear layers are close.
+- At 7B the validation pick was LoRA (113/248 vs 110 for full fine-tuning), even though
+  full fine-tuning scores higher on test. Selection used validation only, by design.
+
+**Prompt-format dependence.** In the first ablation (1.5B, 20k examples), every training
+prompt gave the interface as a code block. VerilogEval describes ports in prose, and the
+full fine-tunes scored 0/156 there because they wrote `module TopModule;` with no ports.
+Describing ports in prose in ~30% of training prompts fixed it (LoRA r=64: 10.3% → 20.5%,
+p < 0.001) without hurting OpenRTLSet; all final runs use that mix
+([results/format_fix_1p5b.md](results/format_fix_1p5b.md)).
+
+**Published fine-tunes.** CodeV-QW-7B is the strongest model here on VerilogEval with the
+interface given (46.8%), but scores 23.6% on OpenRTLSet; RTLCoder trails the Qwen bases.
+Both were run with this project's prompt, so their numbers understate what their own
+prompts get.
+
+**Repetition.** Greedy decoding loops on some long modules. Fine-tuned models hit the
+2048-token cap on 9–15% of test outputs, versus 8.7% for the 1.5B base and 0.9% for the 7B
+base; the training data has many near-identical declaration lines, and the models picked
+up that habit.
 
 ## Inference builds and speed
 
