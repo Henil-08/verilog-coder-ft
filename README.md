@@ -285,7 +285,23 @@ uv run --extra mlx python -m inference.bench --model ft-7b --variants mlx,mlx-4b
 (Q4_K_M) and registers it with Ollama. AWQ quantization (llm-compressor, calibrated on
 validation examples) runs on a Modal GPU.
 
-<!-- SPEED -->
+Single-stream decode speed, greedy, 10 VerilogEval prompts, 512 new tokens
+([results/inference_bench.json](results/inference_bench.json)):
+
+| Model | Apple M4 Pro 24 GB: MLX fp16 | MLX 4-bit | Ollama GGUF Q4_K_M | NVIDIA L40S: vLLM bf16 | vLLM AWQ 4-bit |
+|---|---|---|---|---|---|
+| 1.5B | 75.7 tok/s (3.3 GB) | 221.3 tok/s (1.2 GB) | 140.5 tok/s | – | – |
+| 3B | 38.8 tok/s (6.3 GB) | 121.4 tok/s (2.1 GB) | 85.0 tok/s | – | – |
+| 7B | 16.6 tok/s (15.4 GB) | 58.8 tok/s (4.6 GB) | 46.6 tok/s | 48.0 tok/s | 132.6 tok/s |
+
+Peak memory in parentheses (MLX). 4-bit builds decode about 3× faster in a third of the
+memory; their accuracy was not re-measured, and the eval numbers above are for the
+full-precision models. The 3B and 7B Mac numbers were measured while a large upload was
+running and may be slightly low.
+
+Published builds: `henil08/verilog-coder-{1.5b,3b,7b}` (merged weights),
+`-mlx-4bit`, `-gguf` (`ollama run hf.co/henil08/verilog-coder-7b-gguf`),
+`henil08/verilog-coder-7b-awq`, and `henil08/verilog-coder-7b-lora` (adapter only).
 
 ## Repository layout
 
