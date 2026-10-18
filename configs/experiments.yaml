@@ -2,7 +2,9 @@
 #
 # Ablation grid (1.5B, 20k examples): L* = LoRA, Q* = QLoRA (same adapter
 # settings as the matching L* run, NF4 base), F* = full fine-tune.
-# The 7B run is added once the ablation picks a method.
+# L3i tests a fix for prompt-format dependence: some training prompts describe the
+# ports in prose instead of the header code block. 7B runs use the method picked by
+# the ablation (LoRA r=64) on 40k examples.
 
 defaults:
   base_model: Qwen/Qwen2.5-Coder-1.5B-Instruct
@@ -24,6 +26,9 @@ defaults:
   gpu: H100
   n_gpus: 1
   wandb_project: verilog-coder-ft
+  # Fraction of rows whose interface is given as a prose port list rather than a
+  # header code block (rows with parameters/signed ports always keep the block).
+  interface_prose_fraction: 0.0
 
 lora_attn: &lora_attn
   method: lora
@@ -47,6 +52,19 @@ runs:
   F1: {method: full, learning_rate: 1.0e-5}
   F2: {method: full, learning_rate: 2.0e-5}
   F3: {method: full, learning_rate: 5.0e-5}
+
+  # 0.4 of rows drawn -> ~30% actually get prose (parameterized/signed headers keep the block)
+  L3i: {<<: *lora_all, lora_r: 64, lora_alpha: 128, learning_rate: 1.0e-4, interface_prose_fraction: 0.4}
+
+  L3_7B: &l3_7b
+    <<: *lora_all
+    base_model: Qwen/Qwen2.5-Coder-7B-Instruct
+    train_file: data/processed/train_40k.jsonl
+    lora_r: 64
+    lora_alpha: 128
+    learning_rate: 1.0e-4
+    micro_batch_size: 4
+  L3i_7B: {<<: *l3_7b, interface_prose_fraction: 0.4}
 
   # Local CPU/MPS smoke test of the training loop; not part of the grid.
   smoke:
