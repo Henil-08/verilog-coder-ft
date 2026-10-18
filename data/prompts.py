@@ -10,6 +10,7 @@ SYSTEM_PROMPT = (
 
 _CODE_BLOCK = re.compile(r"```(?:verilog|systemverilog|sv|v)?\s*\n(.*?)```", re.DOTALL)
 _OPEN_FENCE = re.compile(r"```(?:verilog|systemverilog|sv|v)?\s*\n(.*)", re.DOTALL)
+_MODULE_SPAN = re.compile(r"\bmodule\b.*\bendmodule\b", re.DOTALL)
 
 
 def interface_prose(module: str, ports: list[tuple[str, str, int]]) -> str:
@@ -52,7 +53,12 @@ def extract_code(text: str) -> str:
     """Pull the first fenced code block out of a model response, else return it whole.
 
     A response cut off at the token limit has an opening fence but no closing one;
-    everything after the opening fence is taken in that case.
+    everything after the opening fence is taken in that case. Unfenced responses
+    (some published checkpoints answer in plain text) yield the span from the first
+    `module` to the last `endmodule`.
     """
     match = _CODE_BLOCK.search(text) or _OPEN_FENCE.search(text)
-    return (match.group(1) if match else text).strip()
+    if match:
+        return match.group(1).strip()
+    span = _MODULE_SPAN.search(text)
+    return (span.group(0) if span else text).strip()

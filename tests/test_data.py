@@ -41,3 +41,8 @@ def test_prompt_roundtrip():
 
 def test_extract_unterminated_fence():
     assert extract_code("```verilog\nmodule a;\nwire x;") == "module a;\nwire x;"
+
+
+def test_extract_unfenced_module():
+    text = "Sure, here it is:\nmodule a(input x);\nendmodule\nHope this helps."
+    assert extract_code(text) == "module a(input x);\nendmodule"
