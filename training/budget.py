@@ -18,10 +18,16 @@ MEASURED_TPS_1P5B = {
     "Q1": 17_331, "Q2": 13_480, "Q3": 13_258,
     "F1": 20_934, "F2": 18_864, "F3": 21_229,
 }
+# Throughput relative to the matching 1.5B run, measured in 10-step pilots on the grid's
+# GPU setup for that size (3B full: 2xH100; 7B full: 2xH200). Families are L/Q/F.
+MEASURED_SIZE_FACTOR = {
+    ("3B", "L"): 8_694 / 16_424, ("3B", "Q"): 8_694 / 16_424, ("3B", "F"): 12_608 / 20_934,
+    ("7B", "L"): 5_481 / 16_424, ("7B", "Q"): 4_293 / 13_258, ("7B", "F"): 7_493 / 20_934,
+}
 PARAMS_B = {"0.5B": 0.49, "1.5B": 1.54, "3B": 3.09, "7B": 7.62, "14B": 14.8}
 GPU_SPEED = {"H100": 1.0, "H200": 1.2, "A100-80GB": 0.5, "A100-40GB": 0.45, "L40S": 0.4}
 MULTI_GPU_EFFICIENCY = 0.85
-OVERHEAD_SECONDS = 300  # image start, model download, tokenization
+OVERHEAD_SECONDS = 240  # image start, model download, tokenization
 MARGIN = 1.15
 # Generation for all benchmarks on one L40S, per model (roughly scales with size).
 EVAL_COST_USD = {"0.5B": 0.2, "1.5B": 0.3, "3B": 0.5, "7B": 1.0, "14B": 1.8}
@@ -41,9 +47,13 @@ def train_tokens(train_file: str) -> int:
 def estimate_run_cost(cfg: dict) -> float:
     method_key = cfg["run_name"].rsplit("-", 1)[-1]
     base_tps = MEASURED_TPS_1P5B.get(method_key, 15_000)
-    n = cfg["n_gpus"]
-    tps = base_tps * PARAMS_B["1.5B"] / PARAMS_B[_size(cfg["base_model"])]
-    tps *= GPU_SPEED.get(cfg["gpu"], 1.0) * n * (MULTI_GPU_EFFICIENCY if n > 1 else 1.0)
+    size, n = _size(cfg["base_model"]), cfg["n_gpus"]
+    factor = MEASURED_SIZE_FACTOR.get((size, method_key[0]))
+    if factor is not None:
+        tps = base_tps * factor
+    else:  # no pilot for this size: scale by parameter count and GPU setup
+        tps = base_tps * PARAMS_B["1.5B"] / PARAMS_B.get(size, 7.62)
+        tps *= GPU_SPEED.get(cfg["gpu"], 1.0) * n * (MULTI_GPU_EFFICIENCY if n > 1 else 1.0)
     seconds = train_tokens(cfg["train_file"]) * cfg["epochs"] / tps + OVERHEAD_SECONDS
     return round(seconds / 3600 * GPU_HOURLY_USD[cfg["gpu"]] * n * MARGIN, 2)
 
