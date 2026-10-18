@@ -5,6 +5,7 @@ Models are named by run (from configs/experiments.yaml), `base`, or a Hub id:
     uv run modal run eval/modal_generate.py --models base,L1,L2,L3,Q1,Q2,Q3
     uv run modal run eval/modal_generate.py --models F1,F2,F3
     uv run modal run eval/modal_generate.py --models Qwen/Qwen2.5-Coder-14B-Instruct --gpu A100-80GB
+    uv run modal run eval/modal_generate.py --models base,L1 --benchmarks verilog_eval_iface --suffix .iface
 
 LoRA and QLoRA adapters share one vLLM instance of their bf16 base model (QLoRA
 adapters are served on the bf16 base, the usual merge/deploy path). Decoding is
@@ -51,7 +52,7 @@ image = (
     volumes={VOL: runs_volume, "/cache": hf_cache},
     secrets=[modal.Secret.from_name("huggingface-secret")],
 )
-def generate(model: str, variants: list[dict], items: list[dict], max_lora_rank: int = 64) -> list[dict]:
+def generate(model: str, variants: list[dict], items: list[dict], suffix: str = "", max_lora_rank: int = 64) -> list[dict]:
     """Run every variant (plain model or LoRA adapter on `model`) over `items`."""
     from vllm import LLM, SamplingParams
     from vllm.lora.request import LoRARequest
@@ -93,8 +94,8 @@ def generate(model: str, variants: list[dict], items: list[dict], max_lora_rank:
                 "output_tokens": len(completion.token_ids),
                 "finish_reason": completion.finish_reason,
             })
-        (out_dir / f"{variant['tag']}.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
-        stats.append({"model": variant["tag"], "seconds": round(seconds, 1), "output_tokens": total_tokens,
+        (out_dir / f"{variant['tag']}{suffix}.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
+        stats.append({"model": variant["tag"], "file": f"{variant['tag']}{suffix}.jsonl", "seconds": round(seconds, 1), "output_tokens": total_tokens,
                       "batch_tokens_per_second": round(total_tokens / seconds, 1)})
         print(stats[-1])
     runs_volume.commit()
@@ -118,13 +119,17 @@ def resolve(name: str) -> tuple[str, dict]:
 
 
 @app.local_entrypoint()
-def main(models: str, gpu: str = "", limit: int = 0):
+def main(models: str, gpu: str = "", limit: int = 0, benchmarks: str = "", suffix: str = ""):
+    """`--benchmarks verilog_eval_iface --suffix .iface` generates just that set into separate files."""
     sys.path.insert(0, str(PROJECT_DIR))
-    from eval.prompts import all_items
+    from eval.prompts import BENCHMARKS, all_items
 
-    items = all_items()
+    items = all_items(benchmarks.split(",") if benchmarks else BENCHMARKS)
     if limit:
-        items = items[:limit] + [it for it in items if it["benchmark"] == "verilog_eval"][:limit]
+        by_bench: dict[str, list] = defaultdict(list)
+        for it in items:
+            by_bench[it["benchmark"]].append(it)
+        items = [it for group in by_bench.values() for it in group[:limit]]
     print(f"{len(items)} prompts")
 
     # Adapters sharing a base go to one container; full models and Hub models get their own.
@@ -136,14 +141,14 @@ def main(models: str, gpu: str = "", limit: int = 0):
     calls = []
     for path, variants in groups.items():
         fn = generate.with_options(gpu=gpu) if gpu else generate
-        calls.append(fn.spawn(path, variants, items))
+        calls.append(fn.spawn(path, variants, items, suffix))
         print(f"launched {path}: {[v['tag'] for v in variants]}")
 
     local_dir = PROJECT_DIR / "outputs" / "generations"
     local_dir.mkdir(parents=True, exist_ok=True)
     for call in calls:
         for s in call.get():
-            data = b"".join(runs_volume.read_file(f"generations/{s['model']}.jsonl"))
-            (local_dir / f"{s['model']}.jsonl").write_bytes(data)
+            data = b"".join(runs_volume.read_file(f"generations/{s['file']}"))
+            (local_dir / s["file"]).write_bytes(data)
             print(f"{s['model']:<32} {s['output_tokens']:>9,} tokens  {s['batch_tokens_per_second']:>8,.0f} tok/s")
     print(f"saved to {local_dir}")
