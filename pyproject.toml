@@ -24,6 +24,9 @@ train = [
 vllm = [
     "vllm==0.31.0 ; sys_platform == 'linux'",
 ]
+mlx = [
+    "mlx-lm>=0.30 ; sys_platform == 'darwin'",
+]
 
 [dependency-groups]
 dev = [
