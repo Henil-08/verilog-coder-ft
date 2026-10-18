@@ -89,8 +89,7 @@ grid:
     7B:
       base_model: Qwen/Qwen2.5-Coder-7B-Instruct
       micro_batch_size: 4
-      full:  # ~120 GB of weights/grads/Adam states: ZeRO-3 over two H200s
+      full:  # ~120 GB of weights/grads/Adam states; ZeRO-2 over two H200s is ~68 GB/GPU
         gpu: H200
         n_gpus: 2
         micro_batch_size: 2
-        deepspeed: configs/deepspeed/zero3.json

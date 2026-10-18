@@ -65,5 +65,5 @@ def test_grid_resolution():
 
     f7 = load_run("7B-F2")
     assert (f7["gpu"], f7["n_gpus"], f7["learning_rate"]) == ("H200", 2, 2.0e-5)
-    assert f7["deepspeed"].endswith("zero3.json")
+    assert f7["deepspeed"].endswith("zero2.json")
     assert load_run("7B-Q1")["micro_batch_size"] == 4
